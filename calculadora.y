@@ -30,7 +30,7 @@ struct estructura_tabla_simbolos {
 };
 
 struct estructura_arbol {
-	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print
+	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print, 10 es suma
 	int tipo; // 0 es int, 1 es float
 	float valor; // Campo utilizado solo para constantes
 	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
@@ -131,7 +131,9 @@ stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(
 		 | BEGIN_RESERVADA opt_stmts END_RESERVADA
 ;
 
-expr : expr SUMA term		
+expr : expr SUMA term							{	nodo_arbol* nodo = crear_nodo_arbol(10, -1, -1, NULL, $1, NULL, $3);
+																		asignar_tipo(nodo);
+																		$$ = nodo;	}
      | expr RESTA term	
      | term												{$$ = $$;}
 ;
@@ -172,6 +174,29 @@ void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der) {
 	nodo_izq->direccion_tabla_simbolos->valor = nodo_der->valor;
 }
 
+float suma(nodo_arbol* izq, nodo_arbol* der) {
+	float izquierda = 0.0;
+	float derecha = 0.0;
+
+	if(izq->definicion == 0) {
+		izquierda = izq->direccion_tabla_simbolos->valor;
+	}
+
+	if(izq->definicion == 1) {
+		izquierda = izq->valor;
+	}
+
+	if(der->definicion == 0) {
+		derecha = der->direccion_tabla_simbolos->valor;
+	}
+
+	if(der->definicion == 1) {
+		derecha = der->valor;
+	}
+	
+	return izquierda + derecha;
+}
+
 void imprimir(nodo_arbol* nodo) {
 	if(nodo->definicion == 0) {
 		if(nodo->tipo == 0) {
@@ -179,6 +204,15 @@ void imprimir(nodo_arbol* nodo) {
 		} else {
 			printf("%f\n", nodo->direccion_tabla_simbolos->valor);
 		}	
+	}
+
+	if(nodo->definicion == 10) {
+		float resultado = suma(nodo->izq, nodo->der);
+		if(nodo->tipo == 0) {
+			printf("%d\n", (int)resultado);
+		} else {
+			printf("%f\n", resultado);
+		}
 	}
 }
 
@@ -264,7 +298,7 @@ nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* no
 	if(nodo_a_buscar == NULL) {
 		/* Lanzar error: símbolo no encontrado en la tabla de símbolos */
 		return NULL;
-	} 
+	}
 	
 	if(strcmp(nombre_variable, nodo_a_buscar->nombre_variable) == 0) {
 		nodo_arbol* nodo_encontrado;
@@ -275,6 +309,7 @@ nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* no
 		nodo_encontrado->valor = -1;
 		nodo_encontrado->direccion_tabla_simbolos = nodo_a_buscar;
 		nodo_encontrado->izq = NULL;
+		nodo_encontrado->centro = NULL;
 		nodo_encontrado->der = NULL;
 
 		return nodo_encontrado;
@@ -289,7 +324,7 @@ nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* no
 }
 
 nodo_arbol* asignar_tipo(nodo_arbol* nodo) {
-	if(nodo->definicion == 2) {
+	if(nodo->definicion == 2 || nodo->definicion == 10) {
 		if(nodo->izq->tipo != nodo->der->tipo) {
 			/* Lanzar error: tipos diferentes */
 			return nodo;
