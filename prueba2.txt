@@ -1,0 +1,6 @@
+x : int;
+y : int
+begin
+   x <- 3;
+   print x
+end

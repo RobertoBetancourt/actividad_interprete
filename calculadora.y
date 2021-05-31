@@ -14,104 +14,137 @@
 %{
 #include<stdio.h>
 #include<math.h>
+#include <string.h>
 #include <stdint.h>
-#define YYSTYPE nodo*
 
-typedef struct estructura_tabla nodo_simbolo;
+typedef struct estructura_tabla_simbolos nodo_lista_ligada;
+typedef struct estructura_arbol nodo_arbol;
+typedef struct estructura_punto_y_coma nodo_punto_y_coma;
 
-typedef struct estructura_nodo nodo;
 
-struct estructura_tabla {
-	char nombre_variable[10];
-	int tipo;
-	float valor_inicial;
-	nodo_simbolo* simbolo_siguiente;
+struct estructura_tabla_simbolos {
+	char nombre_variable[20];
+	int tipo; // 0 es int, 1 es float
+	float valor;
+	nodo_lista_ligada* simbolo_siguiente;
 };
 
-struct estructura_nodo {
-	int tipo; // 0 es un numero, 1 es un operando
-	int valor; // Si el tipo es operando, 0 es suma, 1 es resta, 2 es multiplicación, 3 es división, 4 es módulo, 5 es potencia
-	nodo* izq;
-	nodo* der;
+struct estructura_arbol {
+	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print
+	int tipo; // 0 es int, 1 es float
+	float valor; // Campo utilizado solo para constantes
+	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
+	nodo_arbol* izq;
+	nodo_arbol* centro; // Campo utilizado solo en los if
+	nodo_arbol* der;
 };
+
+struct estructura_punto_y_coma {
+	nodo_arbol* inicio;
+	nodo_punto_y_coma* siguiente_instruccion;
+}; 
 
 extern int yylex();
 int yyerror(char const * s);
-void imprimir_valor(nodo* n);
-void recorrer_arbol(nodo* n);
-nodo* nuevo_nodo(int tipo, float valor, nodo* izq, nodo* der);
-nodo* agregar_tabla(int tipo, float valor_inicial, nodo_simbolo* simbolo_anterior, char nombre_variable [10], nodo_simbolo* nodo_raiz);
-nodo_simbolo* nodo_raiz = NULL;
-nodo_simbolo* nodo_anterior = NULL;
+void imprimir_valor(nodo_arbol* n);
+void recorrer_arbol(nodo_arbol* n);
 
+nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar);
+nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der);
+nodo_arbol* asignar_tipo(nodo_arbol* nodo);
+
+nodo_lista_ligada* unir_tabla_de_simbolos(nodo_lista_ligada* nodo1, nodo_lista_ligada* nodo2);
+nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int tipo); // 0 es int, 1 es float
+
+nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion);
+nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2);
+
+void imprimir_tabla_de_simbolos(nodo_lista_ligada* nodo);
+void imprimir_nodo(nodo_arbol* nodo);
+void imprimir_instrucciones(nodo_punto_y_coma* nodo);
+void ejecutar_instrucciones(nodo_punto_y_coma* nodo);
+void imprimir(nodo_arbol* nodo);
+void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
+
+nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
+nodo_punto_y_coma* cabeza_instrucciones = NULL;
 %}
 
-/* Los elementos terminales de la gramática. La declaración de abajo se
-   convierte en definición de constantes en el archivo calculadora.tab.h
-   que hay que incluir en el archivo de flex. */
 %union {
-  int entero;
-	float flotante;
-  nodo* n;
+  int numero_entero;
+	float numero_flotante;
+	char cadena[20];
+  struct estructura_arbol* nodo_arbol;
+	struct estructura_tabla_simbolos* nodo_lista_ligada;
+	struct estructura_punto_y_coma* nodo_punto_y_coma;
 }
 
-%token <entero> ENTERO
-%token <flotante> FLOTANTE
-%token <n> IDENTIFICADOR ASIGNACION TIPO_ENTERO TIPO_FLOTANTE SUMA RESTA DIVIDE MULTI PAREND PARENI DOS_PUNTOS PUNTO_Y_COMA BEGIN_RESERVADA END_RESERVADA IF_RESERVADA FI_RESERVADA ELSE_RESERVADA WHILE_RESERVADA FOR_RESERVADA TO_RESERVADA STEP_RESERVADA DO_RESERVADA READ_RESERVADA PRINT_RESERVADA MENOR_QUE MAYOR_QUE IGUAL_QUE MENOR_O_IGUAL_QUE MAYOR_O_IGUAL_QUE
+%token ASIGNACION SUMA RESTA DIVIDE MULTI PAREND PARENI DOS_PUNTOS PUNTO_Y_COMA BEGIN_RESERVADA END_RESERVADA IF_RESERVADA FI_RESERVADA ELSE_RESERVADA WHILE_RESERVADA FOR_RESERVADA TO_RESERVADA STEP_RESERVADA DO_RESERVADA READ_RESERVADA PRINT_RESERVADA MENOR_QUE MAYOR_QUE IGUAL_QUE MENOR_O_IGUAL_QUE MAYOR_O_IGUAL_QUE
+%token <numero_entero> ENTERO TIPO_ENTERO TIPO_FLOTANTE
+%token <numero_flotante> FLOTANTE
+%token <cadena> IDENTIFICADOR
+%type <numero_entero> tipo
+%type <nodo_lista_ligada> decl decl_lst opt_decls
+%type <nodo_arbol> factor term expr stmt expression
+%type <nodo_punto_y_coma> stmt_lst opt_stmts
 %start prog
 
 %%
 
-prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA
+prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		{printf("TABLA DE SIMBOLOS:\n"); imprimir_tabla_de_simbolos($1);}
 ;
 
-opt_decls : /*epsilon*/
-					| decl_lst
+opt_decls : /*epsilon*/											{$$ = NULL;}		
+					| decl_lst												{cabeza_tabla_de_simbolos = $1; $$ = $$;}
 ;
 
-decl_lst : decl PUNTO_Y_COMA decl_lst
-				 | decl
+decl_lst : decl PUNTO_Y_COMA decl_lst				{$$ = unir_tabla_de_simbolos($1, $3);}
+				 | decl															{$$ = $$;}
 ;
 
-decl : IDENTIFICADOR DOS_PUNTOS tipo {$$ = agregar_tabla($3, 0, nodo_anterior, $1, nodo_raiz);}
+decl : IDENTIFICADOR DOS_PUNTOS tipo				{$$ = crear_nodo_de_tabla_de_simbolos($1, $3);}
 ;
 
-tipo : TIPO_ENTERO
-		 | TIPO_FLOTANTE
+tipo : TIPO_ENTERO													{$$ = 0;}
+		 | TIPO_FLOTANTE												{$$ = 1;}
 ;
 
-stmt : IDENTIFICADOR ASIGNACION expr
+opt_stmts : /*epsilon*/									
+					| stmt_lst												{cabeza_instrucciones = $1; ejecutar_instrucciones(cabeza_instrucciones); $$ = $$;}
+;
+
+stmt_lst : stmt PUNTO_Y_COMA stmt_lst				{$$ = crear_instruccion($1, $3);}
+				 | stmt															{$$ = crear_instruccion($1, NULL);}
+;
+
+stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(2, -1, -1, NULL, buscar_identificador($1, cabeza_tabla_de_simbolos), NULL, $3);
+																						 			asignar_tipo(nodo);
+																						 			$$ = nodo;	}
 		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA
 		 | IF_RESERVADA PARENI expression PAREND stmt ELSE_RESERVADA stmt
 		 | WHILE_RESERVADA PARENI expression PAREND stmt
 		 | FOR_RESERVADA IDENTIFICADOR ASIGNACION expr TO_RESERVADA expr STEP_RESERVADA expr DO_RESERVADA stmt
 		 | READ_RESERVADA IDENTIFICADOR
-		 | PRINT_RESERVADA expr
+		 | PRINT_RESERVADA expr											{	nodo_arbol* nodo = crear_nodo_arbol(7, -1, -1, NULL, NULL, $2, NULL);
+																						 			asignar_tipo(nodo);
+																						 			$$ = nodo;	}
 		 | BEGIN_RESERVADA opt_stmts END_RESERVADA
 ;
 
-opt_stmts : /*epsilon*/
-					| stmt_lst
+expr : expr SUMA term		
+     | expr RESTA term	
+     | term												{$$ = $$;}
 ;
 
-stmt_lst : stmt PUNTO_Y_COMA stmt_lst
-				 | stmt
+term : term MULTI factor	
+     | term DIVIDE factor	
+     | factor											{$$ = $$;}
 ;
 
-expr : expr SUMA term    		{$$ = nuevo_nodo(1, 0, $1, $3);}
-     | expr RESTA term   		{$$ = nuevo_nodo(1, 1, $1, $3);}
-     | term									{$$ = $$;}
-;
-
-term : term MULTI factor   	{$$ = nuevo_nodo(1, 2, $1, $3);}
-     | term DIVIDE factor  	{$$ = nuevo_nodo(1, 3, $1, $3);}
-     | factor								{$$ = $$;}
-;
-
-factor : PARENI expr PAREND  	{$$ = $2;}
-       | IDENTIFICADOR				{$$ = nuevo_nodo(0, (intptr_t)$1, NULL, NULL);}
-			 | ENTERO								
-			 | FLOTANTE
+factor : PARENI expr PAREND
+       | IDENTIFICADOR						{$$ = buscar_identificador($1, cabeza_tabla_de_simbolos);}
+			 | ENTERO										{$$ = crear_nodo_arbol(1, 0, $1, NULL, NULL, NULL, NULL);}
+			 | FLOTANTE									{$$ = crear_nodo_arbol(1, 1, $1, NULL, NULL, NULL, NULL);}
 ;
 
 expression : expr MENOR_QUE expr
@@ -124,23 +157,7 @@ expression : expr MENOR_QUE expr
 %%
 
 
-void imprimir_valor(nodo* n) {
-	if(n->tipo == 0) {
-		printf("%d\n", n->valor);
-	} else {
-		switch(n->valor) {
-			case 0: printf("+\n"); break;
-			case 1: printf("-\n"); break;
-			case 2: printf("*\n"); break;
-			case 3: printf("/\n"); break;
-			case 4: printf("%%\n"); break;
-			case 5: printf("^\n"); break;
-			default: break;
-		}
-	}
-}
-
-void recorrer_arbol(nodo* n) {
+/* void recorrer_arbol(nodo_arbol* n) {
 	if(n->tipo == 0) {
 		imprimir_valor(n);
 		return;
@@ -149,34 +166,179 @@ void recorrer_arbol(nodo* n) {
 	recorrer_arbol(n->izq);
 	recorrer_arbol(n->der);
 	imprimir_valor(n);
+} */
+
+void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der) {
+	nodo_izq->direccion_tabla_simbolos->valor = nodo_der->valor;
 }
 
-nodo* agregar_tabla(int tipo, float valor_inicial, nodo_simbolo* simbolo_anterior, char nombre_variable [10], nodo_simbolo* nodo_raiz) {
-	nodo_simbolo* temp;
-	temp = (nodo*)malloc(sizeof(nodo));
-
-	temp->valor_inicial = valor_inicial;
-	temp->simbolo_anterior = simbolo_anterior;
-	temp->tipo = tipo;
-	temp->nombre_variable = nombre_variable;
-
-	if (nodo_raiz == NULL) nodo_raiz = temp;
-	
-	nodo_anterior = temp;
-
-	return nuevo_nodo(tipo, valor_inicial, NULL, NULL);
+void imprimir(nodo_arbol* nodo) {
+	if(nodo->definicion == 0) {
+		if(nodo->tipo == 0) {
+			printf("%d\n", (int)nodo->direccion_tabla_simbolos->valor);
+		} else {
+			printf("%f\n", nodo->direccion_tabla_simbolos->valor);
+		}	
+	}
 }
 
-nodo* nuevo_nodo(int tipo, float valor, nodo* izq, nodo* der) {
-	nodo* temp;
-	temp = (nodo*)malloc( sizeof(nodo) );
+void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
+	// Caso en el que se debe ejecutar una asignacion
+	if(nodo->inicio->definicion == 2) {
+		asignacion(nodo->inicio->izq, nodo->inicio->der);
+	}
+
+	// Caso en el que se debe ejecutar un print
+	if(nodo->inicio->definicion == 7) {
+		imprimir(nodo->inicio->centro);
+	}
+
+	if(nodo->siguiente_instruccion != NULL) {
+		ejecutar_instrucciones(nodo->siguiente_instruccion);
+	}
+
+}
+
+void imprimir_tabla_de_simbolos(nodo_lista_ligada* nodo) {
+	// Si la cabeza de la lista ligada es NULL, la tabla de símbolos está vacía
+	if(nodo == NULL) {
+		printf("Tabla de simbolos vacia\n");
+		return;
+	}
+
+	// Se imprime el nodo actual
+	printf("Variable: %s\tTipo: %d\n", nodo->nombre_variable, nodo->tipo);
+
+	// Si el nodo actual no es el último elemento de la lista ligada, se manda a imprimir el siguiente nodo
+	if(nodo->simbolo_siguiente != NULL) {
+		imprimir_tabla_de_simbolos(nodo->simbolo_siguiente);
+	}	
+}
+
+nodo_lista_ligada* unir_tabla_de_simbolos(nodo_lista_ligada* nodo1, nodo_lista_ligada* nodo2) {
+	// El nodo1 guarda un apuntador hacia el nodo2
+	nodo1->simbolo_siguiente = nodo2;
+	return nodo1;
+}
+
+nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char variable[20], int tipo) {
+	// Se crea un nodo en el que se almacenará la variable
+	nodo_lista_ligada* nuevo_nodo;
+	nuevo_nodo = (nodo_lista_ligada*)malloc( sizeof(nodo_lista_ligada) );
+
+	// Se almacenan los datos en el nodo
+	nuevo_nodo->tipo = tipo;
+	nuevo_nodo->valor = 0;
+	nuevo_nodo->simbolo_siguiente = NULL;
+	strncpy(nuevo_nodo->nombre_variable, variable, 20);
+
+	return nuevo_nodo;
+}
+
+nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der) {
+	// Si se trata de un stmt de una asignación, comprobar que a la izq esté una variable
+	if(definicion == 2) {
+		if(izq->definicion != 0) {
+			/* Lanzar error: A la izq debe ir una variable */
+			return NULL;
+		}
+	}
+
+	// Se crea un nodo
+	nodo_arbol* nuevo_nodo;
+	nuevo_nodo = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+
+	// Se almacenan los datos en el nodo
+	nuevo_nodo->definicion = definicion;
+	nuevo_nodo->tipo = tipo;
+	nuevo_nodo->valor = valor;
+	nuevo_nodo->direccion_tabla_simbolos = direccion_tabla_simbolos;
+	nuevo_nodo->izq = izq;
+	nuevo_nodo->centro = centro;
+	nuevo_nodo->der = der;
+
+	return nuevo_nodo;
+}
+
+nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar) {
+	if(nodo_a_buscar == NULL) {
+		/* Lanzar error: símbolo no encontrado en la tabla de símbolos */
+		return NULL;
+	} 
 	
-	temp->tipo = tipo;
-	temp->valor = valor;
-	temp->izq = izq;
-	temp->der = der;	
+	if(strcmp(nombre_variable, nodo_a_buscar->nombre_variable) == 0) {
+		nodo_arbol* nodo_encontrado;
+		nodo_encontrado = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+
+		nodo_encontrado->definicion = 0;
+		nodo_encontrado->tipo = nodo_a_buscar->tipo;
+		nodo_encontrado->valor = -1;
+		nodo_encontrado->direccion_tabla_simbolos = nodo_a_buscar;
+		nodo_encontrado->izq = NULL;
+		nodo_encontrado->der = NULL;
+
+		return nodo_encontrado;
+	}
 	
-	return temp;
+	if(nodo_a_buscar->simbolo_siguiente == NULL) {
+			/* Lanzar error: símbolo no encontrado en la tabla de símbolos */
+			return NULL;
+	}
+
+	buscar_identificador(nombre_variable, nodo_a_buscar->simbolo_siguiente);	
+}
+
+nodo_arbol* asignar_tipo(nodo_arbol* nodo) {
+	if(nodo->definicion == 2) {
+		if(nodo->izq->tipo != nodo->der->tipo) {
+			/* Lanzar error: tipos diferentes */
+			return nodo;
+		}
+		nodo->tipo = nodo->izq->tipo;
+	}
+
+	if(nodo->definicion == 7) {
+		nodo->tipo = nodo->centro->tipo;
+	}
+
+	return nodo;
+}
+
+nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion) {
+	nodo_punto_y_coma* nodo_instruccion;
+	nodo_instruccion = (nodo_punto_y_coma*)malloc( sizeof(nodo_punto_y_coma) );
+
+	nodo_instruccion->inicio = inicio;
+	nodo_instruccion->siguiente_instruccion = siguiente_instruccion;
+
+	return nodo_instruccion;
+}
+
+nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2) {
+	// El nodo1 guarda un apuntador hacia el nodo2
+	nodo1->siguiente_instruccion = nodo2;
+	return nodo1;
+}
+
+// Funciones para debuggear
+void imprimir_instrucciones(nodo_punto_y_coma* nodo) {
+	imprimir_nodo(nodo->inicio);
+
+	if(nodo->siguiente_instruccion != NULL) {
+		imprimir_instrucciones(nodo->siguiente_instruccion);
+	}
+}
+
+void imprimir_nodo(nodo_arbol* nodo) {
+	printf("Informacion nodo: definicion -> %d, tipo -> %d, valor -> %f\n", nodo->definicion, nodo->tipo, nodo->valor);
+
+	if(nodo->izq != NULL) {
+		imprimir_nodo(nodo->izq);
+	}
+
+	if(nodo->der != NULL) {
+		imprimir_nodo(nodo->der);
+	}
 }
 
 int yyerror(char const * s) {
@@ -184,6 +346,5 @@ int yyerror(char const * s) {
 }
 
 void main() {
-
   yyparse();
 }
