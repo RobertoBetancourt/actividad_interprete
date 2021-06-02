@@ -31,7 +31,7 @@ struct estructura_tabla_simbolos {
 };
 
 struct estructura_arbol {
-	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división
+	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división, 14 es menor que
 	int tipo; // 0 es int, 1 es float
 	float valor; // Campo utilizado solo para constantes
 	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
@@ -47,6 +47,7 @@ struct estructura_punto_y_coma {
 
 extern int numero_linea;
 extern int yylex();
+extern FILE *yyin;
 int yyerror(char const * s);
 void imprimir_valor(nodo_arbol* n);
 void recorrer_arbol(nodo_arbol* n);
@@ -61,10 +62,13 @@ nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int
 nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion);
 nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2);
 
+int type_of_input(const char *str);
+
 float sumar(nodo_arbol* izq, nodo_arbol* der);
 float restar(nodo_arbol* izq, nodo_arbol* der);
 float multiplicar(nodo_arbol* izq, nodo_arbol* der);
 float dividir(nodo_arbol* izq, nodo_arbol* der);
+void leer(nodo_arbol* nodo);
 
 void imprimir_tabla_de_simbolos(nodo_lista_ligada* nodo);
 void imprimir_nodo(nodo_arbol* nodo);
@@ -75,6 +79,7 @@ void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
 
 nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
 nodo_punto_y_coma* cabeza_instrucciones = NULL;
+int show_errors = 1;
 
 %}
 
@@ -99,7 +104,7 @@ nodo_punto_y_coma* cabeza_instrucciones = NULL;
 
 %%
 
-prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		/*{printf("TABLA DE SIMBOLOS:\n"); imprimir_tabla_de_simbolos($1);}*/
+prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		{cabeza_instrucciones = $3;}
 ;
 
 opt_decls : /*epsilon*/											{$$ = NULL;}		
@@ -118,7 +123,7 @@ tipo : TIPO_ENTERO													{$$ = 0;}
 ;
 
 opt_stmts : /*epsilon*/									
-					| stmt_lst												{cabeza_instrucciones = $1; ejecutar_instrucciones(cabeza_instrucciones); $$ = $$;}
+					| stmt_lst												{$$ = $$;}
 ;
 
 stmt_lst : stmt PUNTO_Y_COMA stmt_lst				{$$ = crear_instruccion($1, $3);}
@@ -128,11 +133,13 @@ stmt_lst : stmt PUNTO_Y_COMA stmt_lst				{$$ = crear_instruccion($1, $3);}
 stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(2, -1, -1, NULL, buscar_identificador($1, cabeza_tabla_de_simbolos), NULL, $3);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
-		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA
+		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA				
 		 | IF_RESERVADA PARENI expression PAREND stmt ELSE_RESERVADA stmt
 		 | WHILE_RESERVADA PARENI expression PAREND stmt
 		 | FOR_RESERVADA IDENTIFICADOR ASIGNACION expr TO_RESERVADA expr STEP_RESERVADA expr DO_RESERVADA stmt
-		 | READ_RESERVADA IDENTIFICADOR
+		 | READ_RESERVADA IDENTIFICADOR							{	nodo_arbol* nodo = crear_nodo_arbol(6, -1, -1, NULL, NULL, buscar_identificador($2, cabeza_tabla_de_simbolos), NULL);
+																						 			asignar_tipo(nodo);
+																						 			$$ = nodo;	}
 		 | PRINT_RESERVADA expr											{	nodo_arbol* nodo = crear_nodo_arbol(7, -1, -1, NULL, NULL, $2, NULL);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
@@ -185,7 +192,31 @@ expression : expr MENOR_QUE expr
 } */
 
 void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der) {
-	nodo_izq->direccion_tabla_simbolos->valor = nodo_der->valor;
+	/* printf("Definicion nodo derecha: %d\n\n", nodo_der->definicion); */
+	if(nodo_der->definicion == 0) {
+		nodo_izq->direccion_tabla_simbolos->valor = nodo_der->direccion_tabla_simbolos->valor;
+	}
+
+	if(nodo_der->definicion == 1) {
+		nodo_izq->direccion_tabla_simbolos->valor = nodo_der->valor;
+	}
+
+	if(nodo_der->definicion == 10) {
+		nodo_izq->direccion_tabla_simbolos->valor = sumar(nodo_der->izq, nodo_der->der);
+	}
+
+	if(nodo_der->definicion == 11) {
+		nodo_izq->direccion_tabla_simbolos->valor = restar(nodo_der->izq, nodo_der->der);
+	}
+
+	if(nodo_der->definicion == 12) {
+		nodo_izq->direccion_tabla_simbolos->valor = multiplicar(nodo_der->izq, nodo_der->der);
+	}
+
+	if(nodo_der->definicion == 13) {
+		nodo_izq->direccion_tabla_simbolos->valor = dividir(nodo_der->izq, nodo_der->der);
+	}
+	
 }
 
 float sumar(nodo_arbol* izq, nodo_arbol* der) {
@@ -338,10 +369,47 @@ void imprimir(nodo_arbol* nodo) {
 	}
 }
 
+int type_of_input(const char *str) {
+  while(*str != '\0') {
+    if(*str < '0' || *str > '9') {
+			if(*str != '.') {
+      	return -1;
+			} else {
+				return 1;
+			}	
+		}
+    str++;
+  }
+
+  return 0;
+}
+
+void leer(nodo_arbol* nodo) {
+	char variable[20];
+	float num;
+	
+	fflush( stdin );
+	scanf("%s", variable);
+	num = atof(variable);
+
+	if(type_of_input(variable) == 0 && nodo->tipo == 0) {
+		nodo->direccion_tabla_simbolos->valor = num;
+	} else if(type_of_input(variable) == 1 && nodo->tipo == 1) {
+		nodo->direccion_tabla_simbolos->valor = num;
+	} else {
+		yyerror("La entrada ingresada no es de un tipo valido\n");
+	}
+}
+
 void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	// Caso en el que se debe ejecutar una asignacion
 	if(nodo->inicio->definicion == 2) {
 		asignacion(nodo->inicio->izq, nodo->inicio->der);
+	}
+
+	// Caso en el que se debe ejecutar un read
+	if(nodo->inicio->definicion == 6) {
+		leer(nodo->inicio->centro);
 	}
 
 	// Caso en el que se debe ejecutar un print
@@ -454,7 +522,7 @@ nodo_arbol* asignar_tipo(nodo_arbol* nodo) {
 		nodo->tipo = nodo->izq->tipo;
 	}
 
-	if(nodo->definicion == 7) {
+	if(nodo->definicion == 6 || nodo->definicion == 7) {
 		nodo->tipo = nodo->centro->tipo;
 	}
 
@@ -499,10 +567,27 @@ void imprimir_nodo(nodo_arbol* nodo) {
 }
 
 int yyerror(char const * s) {
-  fprintf(stderr, "Error en linea %d: %s\n\n", numero_linea, s);
-	exit(1);
+	if(show_errors) {
+		fprintf(stderr, "Error en linea %d: %s\n\n", numero_linea, s);
+		exit(1);
+	} else {
+		exit(0);
+	}
 }
 
-void main() {
+void main(int argc, char **argv) {
+  if (argc < 2) {
+    printf ("Error, falta el nombre de un archivo\n");
+    exit(1);
+  }
+
+  yyin = fopen(argv[1], "r");
+
+  if (yyin == NULL) {
+    printf("Error: el archivo no existe\n");
+    exit(1);
+  }
+
   yyparse();
+  ejecutar_instrucciones(cabeza_instrucciones); 
 }

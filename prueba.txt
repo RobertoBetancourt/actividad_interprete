@@ -1,7 +1,7 @@
 x : int;
 y : int
 begin
-   x <- 3;
+   x <- 1;
    y <- 2;
-   print ((5+4)*y+x)/3
+   print x + y
 end
