@@ -63,20 +63,21 @@ nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int
 nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion);
 nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2);
 
-int type_of_input(const char *str);
+int tipo_de_entrada(const char *str);
 
 float sumar(nodo_arbol* izq, nodo_arbol* der);
 float restar(nodo_arbol* izq, nodo_arbol* der);
 float multiplicar(nodo_arbol* izq, nodo_arbol* der);
 float dividir(nodo_arbol* izq, nodo_arbol* der);
-void leer(nodo_arbol* nodo);
 
 void imprimir_tabla_de_simbolos(nodo_lista_ligada* nodo);
 void imprimir_nodo(nodo_arbol* nodo);
 void imprimir_instrucciones(nodo_punto_y_coma* nodo);
 void ejecutar_instrucciones(nodo_punto_y_coma* nodo);
+void leer(nodo_arbol* nodo);
 void imprimir(nodo_arbol* nodo);
 void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
+void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_if, nodo_arbol* nodo_ejecucion_else);
 
 nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
 nodo_punto_y_coma* cabeza_instrucciones = NULL;
@@ -238,7 +239,6 @@ float sumar(nodo_arbol* izq, nodo_arbol* der) {
 		case 13: derecha = dividir(der->izq, der->der); break;
 	}
 	
-	/* printf("Suma izquierda: %f, derecha: %f\n", izquierda, derecha);  */
 	return izquierda + derecha;
 }
 
@@ -264,7 +264,6 @@ float restar(nodo_arbol* izq, nodo_arbol* der) {
 		case 13: derecha = dividir(der->izq, der->der); break;
 	}
 	
-	/* printf("Resta izquierda: %f, derecha: %f\n", izquierda, derecha); */
 	return izquierda - derecha;
 }
 
@@ -290,7 +289,6 @@ float multiplicar(nodo_arbol* izq, nodo_arbol* der) {
 		case 13: derecha = dividir(der->izq, der->der); break;
 	}
 	
-	/* printf("Multiplicacion izquierda: %f, derecha: %f\n", izquierda, derecha); */
 	return izquierda * derecha;
 }
 
@@ -316,7 +314,6 @@ float dividir(nodo_arbol* izq, nodo_arbol* der) {
 		case 13: derecha = dividir(der->izq, der->der); break;		
 	}
 	
-	/* printf("Multiplicacion izquierda: %f, derecha: %f\n", izquierda, derecha); */
 	return izquierda / derecha;
 }
 
@@ -366,7 +363,7 @@ void imprimir(nodo_arbol* nodo) {
 	}
 }
 
-int type_of_input(const char *str) {
+int tipo_de_entrada(const char *str) {
   while(*str != '\0') {
     if(*str < '0' || *str > '9') {
 			if(*str != '.') {
@@ -461,9 +458,9 @@ void leer(nodo_arbol* nodo) {
 	scanf("%s", variable);
 	num = atof(variable);
 
-	if(type_of_input(variable) == 0 && nodo->tipo == 0) {
+	if(tipo_de_entrada(variable) == 0 && nodo->tipo == 0) {
 		nodo->direccion_tabla_simbolos->valor = num;
-	} else if(type_of_input(variable) == 1 && nodo->tipo == 1) {
+	} else if(tipo_de_entrada(variable) == 1 && nodo->tipo == 1) {
 		nodo->direccion_tabla_simbolos->valor = num;
 	} else {
 		yyerror("La entrada ingresada no es de un tipo valido\n");
@@ -475,7 +472,6 @@ void leer(nodo_arbol* nodo) {
 void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	// Caso en el que se debe ejecutar una asignacion
 	if(nodo->inicio->definicion == 2) {
-		printf("Entre a asignacion\n");
 		asignacion(nodo->inicio->izq, nodo->inicio->der);
 	}
 
@@ -548,10 +544,6 @@ nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_l
 			yyerror("A la izquierda de una asignacion debe encontrarse una variable");
 			return NULL;
 		}
-	}
-
-	if(inicio_instrucciones != NULL) {
-		printf("Asignando un nodo punto y coma\n");
 	}
 
 	// Se crea un nodo
@@ -672,7 +664,7 @@ int yyerror(char const * s) {
 
 void main(int argc, char **argv) {
   if (argc < 2) {
-    printf ("Error, falta el nombre de un archivo\n");
+    printf ("Error: falta el nombre de un archivo\n");
     exit(1);
   }
 
