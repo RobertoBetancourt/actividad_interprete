@@ -1,7 +1,14 @@
 x : int;
 y : int
 begin
-   x <- 1;
-   y <- 2;
-   print x + y
+   read x;
+   read y;
+   if (x < y)
+   begin
+      x <- x + 1;
+      y <- x + 2*x
+   end
+   fi;
+   print y;
+   print x
 end
