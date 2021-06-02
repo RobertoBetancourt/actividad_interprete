@@ -5,10 +5,10 @@
    consisten únicamente de sumas, restas, multiplicaciones, divisiones, módulo y potencias de números enteros.
 
   Los comandos para compilar y ejecutar son: 
-    flex calculadora.lex
+    flex calculadora.l
     bison -d calculadora.y
     gcc lex.yy.c calculadora.tab.c -lfl -lm
-    ./a.out
+    ./a.out < prueba.txt
 */
 
 %{
@@ -16,6 +16,7 @@
 #include<math.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef struct estructura_tabla_simbolos nodo_lista_ligada;
 typedef struct estructura_arbol nodo_arbol;
@@ -30,7 +31,7 @@ struct estructura_tabla_simbolos {
 };
 
 struct estructura_arbol {
-	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print, 10 es suma
+	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 7 es stmt de print, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división
 	int tipo; // 0 es int, 1 es float
 	float valor; // Campo utilizado solo para constantes
 	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
@@ -44,6 +45,7 @@ struct estructura_punto_y_coma {
 	nodo_punto_y_coma* siguiente_instruccion;
 }; 
 
+extern int numero_linea;
 extern int yylex();
 int yyerror(char const * s);
 void imprimir_valor(nodo_arbol* n);
@@ -59,6 +61,11 @@ nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int
 nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion);
 nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2);
 
+float sumar(nodo_arbol* izq, nodo_arbol* der);
+float restar(nodo_arbol* izq, nodo_arbol* der);
+float multiplicar(nodo_arbol* izq, nodo_arbol* der);
+float dividir(nodo_arbol* izq, nodo_arbol* der);
+
 void imprimir_tabla_de_simbolos(nodo_lista_ligada* nodo);
 void imprimir_nodo(nodo_arbol* nodo);
 void imprimir_instrucciones(nodo_punto_y_coma* nodo);
@@ -68,6 +75,7 @@ void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
 
 nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
 nodo_punto_y_coma* cabeza_instrucciones = NULL;
+
 %}
 
 %union {
@@ -91,7 +99,7 @@ nodo_punto_y_coma* cabeza_instrucciones = NULL;
 
 %%
 
-prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		{printf("TABLA DE SIMBOLOS:\n"); imprimir_tabla_de_simbolos($1);}
+prog : opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		/*{printf("TABLA DE SIMBOLOS:\n"); imprimir_tabla_de_simbolos($1);}*/
 ;
 
 opt_decls : /*epsilon*/											{$$ = NULL;}		
@@ -134,16 +142,22 @@ stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(
 expr : expr SUMA term							{	nodo_arbol* nodo = crear_nodo_arbol(10, -1, -1, NULL, $1, NULL, $3);
 																		asignar_tipo(nodo);
 																		$$ = nodo;	}
-     | expr RESTA term	
-     | term												{$$ = $$;}
+     | expr RESTA term						{	nodo_arbol* nodo = crear_nodo_arbol(11, -1, -1, NULL, $1, NULL, $3);
+																		asignar_tipo(nodo);
+																		$$ = nodo;	}
+     | term												{ $$ = $$; }
 ;
 
-term : term MULTI factor	
-     | term DIVIDE factor	
-     | factor											{$$ = $$;}
+term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, NULL, $1, NULL, $3);
+																		asignar_tipo(nodo);
+																		$$ = nodo;	}
+     | term DIVIDE factor					{	nodo_arbol* nodo = crear_nodo_arbol(13, -1, -1, NULL, $1, NULL, $3);
+																		asignar_tipo(nodo);
+																		$$ = nodo;	}
+     | factor											{ $$ = $$; }
 ;
 
-factor : PARENI expr PAREND
+factor : PARENI expr PAREND				{$$ = $2;}
        | IDENTIFICADOR						{$$ = buscar_identificador($1, cabeza_tabla_de_simbolos);}
 			 | ENTERO										{$$ = crear_nodo_arbol(1, 0, $1, NULL, NULL, NULL, NULL);}
 			 | FLOTANTE									{$$ = crear_nodo_arbol(1, 1, $1, NULL, NULL, NULL, NULL);}
@@ -174,27 +188,108 @@ void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der) {
 	nodo_izq->direccion_tabla_simbolos->valor = nodo_der->valor;
 }
 
-float suma(nodo_arbol* izq, nodo_arbol* der) {
+float sumar(nodo_arbol* izq, nodo_arbol* der) {
 	float izquierda = 0.0;
 	float derecha = 0.0;
 
-	if(izq->definicion == 0) {
-		izquierda = izq->direccion_tabla_simbolos->valor;
+	switch(izq->definicion) {
+		case 0: izquierda = izq->direccion_tabla_simbolos->valor; break;
+		case 1: izquierda = izq->valor; break;
+		case 10: izquierda = sumar(izq->izq, izq->der); break;
+		case 11: izquierda = restar(izq->izq, izq->der); break;
+		case 12: izquierda = multiplicar(izq->izq, izq->der); break;
+		case 13: izquierda = dividir(izq->izq, izq->der); break;
 	}
 
-	if(izq->definicion == 1) {
-		izquierda = izq->valor;
-	}
-
-	if(der->definicion == 0) {
-		derecha = der->direccion_tabla_simbolos->valor;
-	}
-
-	if(der->definicion == 1) {
-		derecha = der->valor;
+	switch(der->definicion) {
+		case 0: derecha = der->direccion_tabla_simbolos->valor; break;
+		case 1: derecha = der->valor; break;
+		case 10: derecha = sumar(der->izq, der->der); break;
+		case 11: derecha = restar(der->izq, der->der); break;
+		case 12: derecha = multiplicar(der->izq, der->der); break;
+		case 13: derecha = dividir(der->izq, der->der); break;
 	}
 	
+	/* printf("Suma izquierda: %f, derecha: %f\n", izquierda, derecha);  */
 	return izquierda + derecha;
+}
+
+float restar(nodo_arbol* izq, nodo_arbol* der) {
+	float izquierda = 1.0;
+	float derecha = 1.0;
+
+	switch(izq->definicion) {
+		case 0: izquierda = izq->direccion_tabla_simbolos->valor; break;
+		case 1: izquierda = izq->valor; break;
+		case 10: izquierda = sumar(izq->izq, izq->der); break;
+		case 11: izquierda = restar(izq->izq, izq->der); break;
+		case 12: izquierda = multiplicar(izq->izq, izq->der); break;
+		case 13: izquierda = dividir(izq->izq, izq->der); break;
+	}
+
+	switch(der->definicion) {
+		case 0: derecha = der->direccion_tabla_simbolos->valor; break;
+		case 1: derecha = der->valor; break;
+		case 10: derecha = sumar(der->izq, der->der); break;
+		case 11: derecha = restar(der->izq, der->der); break;
+		case 12: derecha = multiplicar(der->izq, der->der); break;
+		case 13: derecha = dividir(der->izq, der->der); break;
+	}
+	
+	/* printf("Resta izquierda: %f, derecha: %f\n", izquierda, derecha); */
+	return izquierda - derecha;
+}
+
+float multiplicar(nodo_arbol* izq, nodo_arbol* der) {
+	float izquierda = 1.0;
+	float derecha = 1.0;
+
+	switch(izq->definicion) {
+		case 0: izquierda = izq->direccion_tabla_simbolos->valor; break;
+		case 1: izquierda = izq->valor; break;
+		case 10: izquierda = sumar(izq->izq, izq->der); break;
+		case 11: izquierda = restar(izq->izq, izq->der); break;
+		case 12: izquierda = multiplicar(izq->izq, izq->der); break;
+		case 13: izquierda = dividir(izq->izq, izq->der); break;
+	}
+
+	switch(der->definicion) {
+		case 0: derecha = der->direccion_tabla_simbolos->valor; break;
+		case 1: derecha = der->valor; break;
+		case 10: derecha = sumar(der->izq, der->der); break;
+		case 11: derecha = restar(der->izq, der->der); break;
+		case 12: derecha = multiplicar(der->izq, der->der); break;
+		case 13: derecha = dividir(der->izq, der->der); break;
+	}
+	
+	/* printf("Multiplicacion izquierda: %f, derecha: %f\n", izquierda, derecha); */
+	return izquierda * derecha;
+}
+
+float dividir(nodo_arbol* izq, nodo_arbol* der) {
+	float izquierda = 1.0;
+	float derecha = 1.0;
+
+	switch(izq->definicion) {
+		case 0: izquierda = izq->direccion_tabla_simbolos->valor; break;
+		case 1: izquierda = izq->valor; break;
+		case 10: izquierda = sumar(izq->izq, izq->der); break;
+		case 11: izquierda = restar(izq->izq, izq->der); break;
+		case 12: izquierda = multiplicar(izq->izq, izq->der); break;
+		case 13: izquierda = dividir(izq->izq, izq->der); break;
+	}
+
+	switch(der->definicion) {
+		case 0: derecha = der->direccion_tabla_simbolos->valor; break;
+		case 1: derecha = der->valor; break;
+		case 10: derecha = sumar(der->izq, der->der); break;
+		case 11: derecha = restar(der->izq, der->der); break;
+		case 12: derecha = multiplicar(der->izq, der->der); break;
+		case 13: derecha = dividir(der->izq, der->der); break;		
+	}
+	
+	/* printf("Multiplicacion izquierda: %f, derecha: %f\n", izquierda, derecha); */
+	return izquierda / derecha;
 }
 
 void imprimir(nodo_arbol* nodo) {
@@ -207,7 +302,34 @@ void imprimir(nodo_arbol* nodo) {
 	}
 
 	if(nodo->definicion == 10) {
-		float resultado = suma(nodo->izq, nodo->der);
+		float resultado = sumar(nodo->izq, nodo->der);
+		if(nodo->tipo == 0) {
+			printf("%d\n", (int)resultado);
+		} else {
+			printf("%f\n", resultado);
+		}
+	}
+
+	if(nodo->definicion == 11) {
+		float resultado = restar(nodo->izq, nodo->der);
+		if(nodo->tipo == 0) {
+			printf("%d\n", (int)resultado);
+		} else {
+			printf("%f\n", resultado);
+		}
+	}
+
+	if(nodo->definicion == 12) {
+		float resultado = multiplicar(nodo->izq, nodo->der);
+		if(nodo->tipo == 0) {
+			printf("%d\n", (int)resultado);
+		} else {
+			printf("%f\n", resultado);
+		}
+	}
+
+	if(nodo->definicion == 13) {
+		float resultado = dividir(nodo->izq, nodo->der);
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)resultado);
 		} else {
@@ -273,7 +395,7 @@ nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_l
 	// Si se trata de un stmt de una asignación, comprobar que a la izq esté una variable
 	if(definicion == 2) {
 		if(izq->definicion != 0) {
-			/* Lanzar error: A la izq debe ir una variable */
+			yyerror("A la izquierda de una asignacion debe encontrarse una variable");
 			return NULL;
 		}
 	}
@@ -296,7 +418,7 @@ nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_l
 
 nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar) {
 	if(nodo_a_buscar == NULL) {
-		/* Lanzar error: símbolo no encontrado en la tabla de símbolos */
+		yyerror("Simbolo no encontrado en la tabla de simbolos");
 		return NULL;
 	}
 	
@@ -316,7 +438,7 @@ nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* no
 	}
 	
 	if(nodo_a_buscar->simbolo_siguiente == NULL) {
-			/* Lanzar error: símbolo no encontrado en la tabla de símbolos */
+			yyerror("Simbolo no encontrado en la tabla de simbolos");
 			return NULL;
 	}
 
@@ -324,9 +446,9 @@ nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* no
 }
 
 nodo_arbol* asignar_tipo(nodo_arbol* nodo) {
-	if(nodo->definicion == 2 || nodo->definicion == 10) {
+	if(nodo->definicion == 2 || nodo->definicion == 10 || nodo->definicion == 11 || nodo->definicion == 12 || nodo->definicion == 13) {
 		if(nodo->izq->tipo != nodo->der->tipo) {
-			/* Lanzar error: tipos diferentes */
+			yyerror("Los tipos no coinciden");
 			return nodo;
 		}
 		nodo->tipo = nodo->izq->tipo;
@@ -377,7 +499,8 @@ void imprimir_nodo(nodo_arbol* nodo) {
 }
 
 int yyerror(char const * s) {
-  fprintf(stderr, "%s\n", s);
+  fprintf(stderr, "Error en linea %d: %s\n\n", numero_linea, s);
+	exit(1);
 }
 
 void main() {

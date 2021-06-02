@@ -3,6 +3,5 @@ y : int
 begin
    x <- 3;
    y <- 2;
-   print x;
-   print x+y
+   print ((5+4)*y+x)/3
 end

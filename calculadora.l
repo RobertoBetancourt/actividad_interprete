@@ -1,9 +1,9 @@
 /*	
 		Los comandos para compilar y ejecutar son: 
-    	flex calculadora.lex
+    	flex calculadora.l
     	bison -d calculadora.y
     	gcc lex.yy.c calculadora.tab.c -lfl -lm
-    	./a.out
+    	./a.out < prueba.txt
 */
 /* Archivo con el reconocedor léxico para la calculadora */
 %{
@@ -12,6 +12,8 @@
   /* Se incluye el archivo generado por bison para tener las definiciones
      de los tokens */
 #include "calculadora.tab.h"
+
+int numero_linea = 1;
 %}
 
 LETRA [A-Za-z]
@@ -19,7 +21,8 @@ DIGITO [1-9][0-9]*
 
 %%
 
-[1-9][0-9]*.[0-9]+          {yylval.numero_flotante = atof(yytext); return FLOTANTE;}
+\n 													{numero_linea++;}
+[1-9][0-9]*[.][0-9]+        {yylval.numero_flotante = atof(yytext); return FLOTANTE;}
 [1-9][0-9]*               	{yylval.numero_entero = atoi(yytext); return ENTERO;}
 "<-"                        {return ASIGNACION;}
 "+"                         {return SUMA;}
