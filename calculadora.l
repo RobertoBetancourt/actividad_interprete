@@ -3,7 +3,7 @@
     	flex calculadora.l
     	bison -d calculadora.y
     	gcc lex.yy.c calculadora.tab.c -lfl -lm
-    	./a.out < prueba.txt
+    	./a.out prueba.txt
 */
 /* Archivo con el reconocedor léxico para la calculadora */
 %{
