@@ -31,7 +31,7 @@ struct estructura_tabla_simbolos {
 };
 
 struct estructura_arbol {
-	int definicion; // 0 es variable, 1 es constante, 2 es stmt de asignacion, 3 es if fi, 4 es if else, 7 es print, 8 es begin, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división, 14 es menor que 
+	int definicion; // 0 es variable, 1 es constante, 2 es asignacion, 3 es if fi, 4 es if else, 5 es while, 6 es read, 7 es print, 8 es begin, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división, 14 es menor que 
 	int tipo; // 0 es int, 1 es float
 	float valor; // Campo utilizado solo para constantes
 	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
@@ -39,6 +39,7 @@ struct estructura_arbol {
 	nodo_arbol* izq;
 	nodo_arbol* centro; // Campo utilizado solo en los if y print
 	nodo_arbol* der;
+	nodo_arbol* step; // Campo utilizado solo en los for
 };
 
 struct estructura_punto_y_coma {
@@ -54,7 +55,7 @@ void imprimir_valor(nodo_arbol* n);
 void recorrer_arbol(nodo_arbol* n);
 
 nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar);
-nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der);
+nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der, nodo_arbol* step);
 nodo_arbol* asignar_tipo(nodo_arbol* nodo);
 
 nodo_lista_ligada* unir_tabla_de_simbolos(nodo_lista_ligada* nodo1, nodo_lista_ligada* nodo2);
@@ -79,6 +80,7 @@ void imprimir(nodo_arbol* nodo);
 void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
 void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_if, nodo_arbol* nodo_ejecucion_else);
 void ejecutar_while(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_while);
+void ejecutar_for(nodo_arbol* nodo_inicializacion, nodo_arbol* nodo_finalizacion, nodo_arbol* nodo_ejecucion_for, nodo_arbol* nodo_step);
 
 nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
 nodo_punto_y_coma* cabeza_instrucciones = NULL;
@@ -132,35 +134,39 @@ stmt_lst : stmt PUNTO_Y_COMA stmt_lst				{$$ = crear_instruccion($1, $3);}
 				 | stmt															{$$ = crear_instruccion($1, NULL);}
 ;
 
-stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(2, -1, -1, NULL, NULL, buscar_identificador($1, cabeza_tabla_de_simbolos), NULL, $3);
+stmt : IDENTIFICADOR ASIGNACION expr						{ nodo_arbol* nodo = crear_nodo_arbol(2, -1, -1, NULL, NULL, buscar_identificador($1, cabeza_tabla_de_simbolos), NULL, $3, NULL);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
-		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA				{	$$ = crear_nodo_arbol(3, -1, -1, NULL, NULL, $3, $5, NULL);	}
-		 | IF_RESERVADA PARENI expression PAREND stmt ELSE_RESERVADA stmt {	$$ = crear_nodo_arbol(4, -1, -1, NULL, NULL, $3, $5, $7);	}
-		 | WHILE_RESERVADA PARENI expression PAREND stmt									{	$$ = crear_nodo_arbol(5, -1, -1, NULL, NULL, $3, NULL, $5);	}
-		 | FOR_RESERVADA IDENTIFICADOR ASIGNACION expr TO_RESERVADA expr STEP_RESERVADA expr DO_RESERVADA stmt
-		 | READ_RESERVADA IDENTIFICADOR							{	nodo_arbol* nodo = crear_nodo_arbol(6, -1, -1, NULL, NULL, NULL, buscar_identificador($2, cabeza_tabla_de_simbolos), NULL);
+		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA				{	$$ = crear_nodo_arbol(3, -1, -1, NULL, NULL, $3, $5, NULL, NULL);	}
+		 | IF_RESERVADA PARENI expression PAREND stmt ELSE_RESERVADA stmt {	$$ = crear_nodo_arbol(4, -1, -1, NULL, NULL, $3, $5, $7, NULL);	}
+		 | WHILE_RESERVADA PARENI expression PAREND stmt									{	$$ = crear_nodo_arbol(5, -1, -1, NULL, NULL, $3, NULL, $5, NULL);	}
+		 | FOR_RESERVADA IDENTIFICADOR ASIGNACION expr TO_RESERVADA expr STEP_RESERVADA expr DO_RESERVADA stmt					{	printf("Entre al for\n"); nodo_arbol* nodo_izq = crear_nodo_arbol(2, -1, -1, NULL, NULL, buscar_identificador($2, cabeza_tabla_de_simbolos), NULL, $4, NULL);
+																						 																																					asignar_tipo(nodo_izq);
+																																																											nodo_arbol* nodo_step = crear_nodo_arbol(20, -1, -1, NULL, NULL, NULL, $10, NULL, NULL);
+																																																											nodo_arbol* nodo_for = crear_nodo_arbol(19, -1, -1, NULL, NULL, nodo_izq, $6, $10, $8);
+																						 																																					$$ = nodo_for;	}
+		 | READ_RESERVADA IDENTIFICADOR							{	nodo_arbol* nodo = crear_nodo_arbol(6, -1, -1, NULL, NULL, NULL, buscar_identificador($2, cabeza_tabla_de_simbolos), NULL, NULL);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
-		 | PRINT_RESERVADA expr											{	nodo_arbol* nodo = crear_nodo_arbol(7, -1, -1, NULL, NULL, NULL, $2, NULL);
+		 | PRINT_RESERVADA expr											{	nodo_arbol* nodo = crear_nodo_arbol(7, -1, -1, NULL, NULL, NULL, $2, NULL, NULL);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
-		 | BEGIN_RESERVADA opt_stmts END_RESERVADA	{$$ = crear_nodo_arbol(8, -1, -1, NULL, $2, NULL, NULL, NULL);}
+		 | BEGIN_RESERVADA opt_stmts END_RESERVADA	{$$ = crear_nodo_arbol(8, -1, -1, NULL, $2, NULL, NULL, NULL, NULL);}
 ;
 
-expr : expr SUMA term							{	nodo_arbol* nodo = crear_nodo_arbol(10, -1, -1, NULL, NULL, $1, NULL, $3);
+expr : expr SUMA term							{	nodo_arbol* nodo = crear_nodo_arbol(10, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																		asignar_tipo(nodo);
 																		$$ = nodo;	}
-     | expr RESTA term						{	nodo_arbol* nodo = crear_nodo_arbol(11, -1, -1, NULL, NULL, $1, NULL, $3);
+     | expr RESTA term						{	nodo_arbol* nodo = crear_nodo_arbol(11, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																		asignar_tipo(nodo);
 																		$$ = nodo;	}
      | term												{ $$ = $$; }
 ;
 
-term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, NULL, NULL, $1, NULL, $3);
+term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																		asignar_tipo(nodo);
 																		$$ = nodo;	}
-     | term DIVIDE factor					{	nodo_arbol* nodo = crear_nodo_arbol(13, -1, -1, NULL, NULL, $1, NULL, $3);
+     | term DIVIDE factor					{	nodo_arbol* nodo = crear_nodo_arbol(13, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																		asignar_tipo(nodo);
 																		$$ = nodo;	}
      | factor											{ $$ = $$; }
@@ -168,23 +174,23 @@ term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, N
 
 factor : PARENI expr PAREND				{$$ = $2;}
        | IDENTIFICADOR						{$$ = buscar_identificador($1, cabeza_tabla_de_simbolos);}
-			 | ENTERO										{$$ = crear_nodo_arbol(1, 0, $1, NULL, NULL, NULL, NULL, NULL);}
-			 | FLOTANTE									{$$ = crear_nodo_arbol(1, 1, $1, NULL, NULL, NULL, NULL, NULL);}
+			 | ENTERO										{$$ = crear_nodo_arbol(1, 0, $1, NULL, NULL, NULL, NULL, NULL, NULL);}
+			 | FLOTANTE									{$$ = crear_nodo_arbol(1, 1, $1, NULL, NULL, NULL, NULL, NULL, NULL);}
 ;
 
-expression : expr MENOR_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(14, -1, -1, NULL, NULL, $1, NULL, $3);
+expression : expr MENOR_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(14, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																								asignar_tipo(nodo);
 																								$$ = nodo;	}
-					 | expr MAYOR_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(15, -1, -1, NULL, NULL, $1, NULL, $3);
+					 | expr MAYOR_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(15, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																								asignar_tipo(nodo);
 																								$$ = nodo;	}
-					 | expr IGUAL_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(16, -1, -1, NULL, NULL, $1, NULL, $3);
+					 | expr IGUAL_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(16, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																								asignar_tipo(nodo);
 																								$$ = nodo;	}
-					 | expr MENOR_O_IGUAL_QUE expr 			{	nodo_arbol* nodo = crear_nodo_arbol(17, -1, -1, NULL, NULL, $1, NULL, $3);
+					 | expr MENOR_O_IGUAL_QUE expr 			{	nodo_arbol* nodo = crear_nodo_arbol(17, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																								asignar_tipo(nodo);
 																								$$ = nodo;	}
-					 | expr MAYOR_O_IGUAL_QUE expr			{	nodo_arbol* nodo = crear_nodo_arbol(18, -1, -1, NULL, NULL, $1, NULL, $3);
+					 | expr MAYOR_O_IGUAL_QUE expr			{	nodo_arbol* nodo = crear_nodo_arbol(18, -1, -1, NULL, NULL, $1, NULL, $3, NULL);
 																								asignar_tipo(nodo);
 																								$$ = nodo;	}
 ;
@@ -592,6 +598,133 @@ void leer(nodo_arbol* nodo) {
 	}
 }
 
+void continuar_for(nodo_arbol* nodo_inicializacion, nodo_arbol* nodo_finalizacion, nodo_arbol* nodo_ejecucion_for, nodo_arbol* nodo_step, float valor_finalizacion, float step) {
+	float valor_inicializacion = 1.0;
+	valor_inicializacion = nodo_inicializacion->izq->direccion_tabla_simbolos->valor;
+
+	if(valor_inicializacion < valor_finalizacion) {
+		if(nodo_ejecucion_for->definicion == 2) {
+			asignacion(nodo_ejecucion_for->izq, nodo_ejecucion_for->der);
+		}
+
+		if(nodo_ejecucion_for->definicion == 3) {
+			evaluar_condicional(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, NULL);
+		}
+
+		// Caso en el que se debe ejecutar un if...else
+		if(nodo_ejecucion_for->definicion == 4) {
+			evaluar_condicional(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, nodo_ejecucion_for->der);
+		}
+
+		// Caso en el que se debe ejecutar un while
+		if(nodo_ejecucion_for->definicion == 5) {
+			ejecutar_while(nodo_ejecucion_for->izq, nodo_ejecucion_for->der);
+		}
+
+		// Caso en el que se debe ejecutar un read
+		if(nodo_ejecucion_for->definicion == 6) {
+			leer(nodo_ejecucion_for->centro);
+		}
+
+		// Caso en el que se debe ejecutar un print
+		if(nodo_ejecucion_for->definicion == 7) {
+			imprimir(nodo_ejecucion_for->centro);
+		}
+
+		// Caso en el que se debe ejecutar un begin
+		if(nodo_ejecucion_for->definicion == 8) {
+			ejecutar_instrucciones(nodo_ejecucion_for->inicio_instrucciones);
+		}
+
+		// Caso en el que se debe ejecutar un for
+		if(nodo_ejecucion_for->definicion == 19) {			
+			ejecutar_for(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, nodo_ejecucion_for->der, nodo_ejecucion_for->step);
+		}
+
+
+		nodo_inicializacion->izq->direccion_tabla_simbolos->valor = nodo_inicializacion->izq->direccion_tabla_simbolos->valor + step;
+
+		continuar_for(nodo_inicializacion, nodo_finalizacion, nodo_ejecucion_for, nodo_step, valor_finalizacion, step);
+	}
+	
+}
+
+void ejecutar_for(nodo_arbol* nodo_inicializacion, nodo_arbol* nodo_finalizacion, nodo_arbol* nodo_ejecucion_for, nodo_arbol* nodo_step) {
+	float valor_inicializacion = 1.0;
+	float valor_finalizacion = 0.0;
+	float step = 1.0;
+
+	asignacion(nodo_inicializacion->izq, nodo_inicializacion->der);
+	valor_inicializacion = nodo_inicializacion->izq->direccion_tabla_simbolos->valor;
+
+	if(nodo_finalizacion->definicion == 0) {
+		valor_finalizacion = nodo_finalizacion->direccion_tabla_simbolos->valor;
+	}
+
+	if(nodo_finalizacion->definicion == 1) {
+		valor_finalizacion = nodo_finalizacion->valor;
+	}
+
+	if(valor_inicializacion < valor_finalizacion) {
+		if(nodo_ejecucion_for->definicion == 2) {
+			asignacion(nodo_ejecucion_for->izq, nodo_ejecucion_for->der);
+		}
+
+		if(nodo_ejecucion_for->definicion == 3) {
+			evaluar_condicional(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, NULL);
+		}
+
+		// Caso en el que se debe ejecutar un if...else
+		if(nodo_ejecucion_for->definicion == 4) {
+			evaluar_condicional(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, nodo_ejecucion_for->der);
+		}
+
+		// Caso en el que se debe ejecutar un while
+		if(nodo_ejecucion_for->definicion == 5) {
+			ejecutar_while(nodo_ejecucion_for->izq, nodo_ejecucion_for->der);
+		}
+
+		// Caso en el que se debe ejecutar un read
+		if(nodo_ejecucion_for->definicion == 6) {
+			leer(nodo_ejecucion_for->centro);
+		}
+
+		// Caso en el que se debe ejecutar un print
+		if(nodo_ejecucion_for->definicion == 7) {
+			imprimir(nodo_ejecucion_for->centro);
+		}
+
+		// Caso en el que se debe ejecutar un begin
+		if(nodo_ejecucion_for->definicion == 8) {
+			ejecutar_instrucciones(nodo_ejecucion_for->inicio_instrucciones);
+		}
+
+		// Caso en el que se debe ejecutar un for
+		if(nodo_ejecucion_for->definicion == 19) {		
+			ejecutar_for(nodo_ejecucion_for->izq, nodo_ejecucion_for->centro, nodo_ejecucion_for->der, nodo_ejecucion_for->step);
+		}
+
+
+		if(nodo_step->definicion == 10) {
+			step = sumar(nodo_step->izq, nodo_step->der);
+		}
+
+		if(nodo_step->definicion == 11) {
+			step = restar(nodo_step->izq, nodo_step->der);
+		}
+
+		if(nodo_step->definicion == 12) {
+			step = multiplicar(nodo_step->izq, nodo_step->der);
+		}
+
+		if(nodo_step->definicion == 13) {
+			step = dividir(nodo_step->izq, nodo_step->der);
+		}
+
+		nodo_inicializacion->izq->direccion_tabla_simbolos->valor = nodo_inicializacion->izq->direccion_tabla_simbolos->valor + step;
+		continuar_for(nodo_inicializacion, nodo_finalizacion, nodo_ejecucion_for, nodo_step, valor_finalizacion, step);
+	}
+}
 
 void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	// Caso en el que se debe ejecutar una asignacion
@@ -623,6 +756,13 @@ void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	if(nodo->inicio->definicion == 7) {
 		imprimir(nodo->inicio->centro);
 	}
+
+	// Caso en el que se debe ejecutar un for
+	if(nodo->inicio->definicion == 19) {		
+		ejecutar_for(nodo->inicio->izq, nodo->inicio->centro, nodo->inicio->der, nodo->inicio->step);
+	}
+
+	
 
 	if(nodo->siguiente_instruccion != NULL) {
 		ejecutar_instrucciones(nodo->siguiente_instruccion);
@@ -666,7 +806,7 @@ nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char variable[20], int tipo) 
 	return nuevo_nodo;
 }
 
-nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der) {
+nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_ligada* direccion_tabla_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der, nodo_arbol* step) {
 	// Si se trata de un stmt de una asignación, comprobar que a la izq esté una variable
 	if(definicion == 2) {
 		if(izq->definicion != 0) {
@@ -688,6 +828,7 @@ nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, nodo_lista_l
 	nuevo_nodo->izq = izq;
 	nuevo_nodo->centro = centro;
 	nuevo_nodo->der = der;
+	nuevo_nodo->step = step;
 
 	return nuevo_nodo;
 }
