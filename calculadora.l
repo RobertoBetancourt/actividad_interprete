@@ -22,7 +22,7 @@ DIGITO [1-9][0-9]*
 %%
 
 \n 													{numero_linea++;}
-[1-9][0-9]*[.][0-9]+        {yylval.numero_flotante = atof(yytext); return FLOTANTE;}
+[0-9]*[.][0-9]+        {yylval.numero_flotante = atof(yytext); return FLOTANTE;}
 [1-9][0-9]*               	{yylval.numero_entero = atoi(yytext); return ENTERO;}
 "<-"                        {return ASIGNACION;}
 "+"                         {return SUMA;}

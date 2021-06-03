@@ -78,6 +78,7 @@ void leer(nodo_arbol* nodo);
 void imprimir(nodo_arbol* nodo);
 void asignacion(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
 void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_if, nodo_arbol* nodo_ejecucion_else);
+void ejecutar_while(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_while);
 
 nodo_lista_ligada* cabeza_tabla_de_simbolos = NULL;
 nodo_punto_y_coma* cabeza_instrucciones = NULL;
@@ -134,9 +135,9 @@ stmt_lst : stmt PUNTO_Y_COMA stmt_lst				{$$ = crear_instruccion($1, $3);}
 stmt : IDENTIFICADOR ASIGNACION expr						{	nodo_arbol* nodo = crear_nodo_arbol(2, -1, -1, NULL, NULL, buscar_identificador($1, cabeza_tabla_de_simbolos), NULL, $3);
 																						 			asignar_tipo(nodo);
 																						 			$$ = nodo;	}
-		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA	{	$$ = crear_nodo_arbol(3, -1, -1, NULL, NULL, $3, $5, NULL);	}
+		 | IF_RESERVADA PARENI expression PAREND stmt FI_RESERVADA				{	$$ = crear_nodo_arbol(3, -1, -1, NULL, NULL, $3, $5, NULL);	}
 		 | IF_RESERVADA PARENI expression PAREND stmt ELSE_RESERVADA stmt {	$$ = crear_nodo_arbol(4, -1, -1, NULL, NULL, $3, $5, $7);	}
-		 | WHILE_RESERVADA PARENI expression PAREND stmt
+		 | WHILE_RESERVADA PARENI expression PAREND stmt									{	$$ = crear_nodo_arbol(5, -1, -1, NULL, NULL, $3, NULL, $5);	}
 		 | FOR_RESERVADA IDENTIFICADOR ASIGNACION expr TO_RESERVADA expr STEP_RESERVADA expr DO_RESERVADA stmt
 		 | READ_RESERVADA IDENTIFICADOR							{	nodo_arbol* nodo = crear_nodo_arbol(6, -1, -1, NULL, NULL, NULL, buscar_identificador($2, cabeza_tabla_de_simbolos), NULL);
 																						 			asignar_tipo(nodo);
@@ -322,7 +323,7 @@ void imprimir(nodo_arbol* nodo) {
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)nodo->direccion_tabla_simbolos->valor);
 		} else {
-			printf("%f\n", nodo->direccion_tabla_simbolos->valor);
+			printf("%g\n", nodo->direccion_tabla_simbolos->valor);
 		}	
 	}
 
@@ -331,7 +332,7 @@ void imprimir(nodo_arbol* nodo) {
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)resultado);
 		} else {
-			printf("%f\n", resultado);
+			printf("%g\n", resultado);
 		}
 	}
 
@@ -340,7 +341,7 @@ void imprimir(nodo_arbol* nodo) {
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)resultado);
 		} else {
-			printf("%f\n", resultado);
+			printf("%g\n", resultado);
 		}
 	}
 
@@ -349,7 +350,7 @@ void imprimir(nodo_arbol* nodo) {
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)resultado);
 		} else {
-			printf("%f\n", resultado);
+			printf("%g\n", resultado);
 		}
 	}
 
@@ -358,7 +359,7 @@ void imprimir(nodo_arbol* nodo) {
 		if(nodo->tipo == 0) {
 			printf("%d\n", (int)resultado);
 		} else {
-			printf("%f\n", resultado);
+			printf("%g\n", resultado);
 		}
 	}
 }
@@ -430,6 +431,26 @@ void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucio
 	}
 
 	if(comparacion) {
+		if(nodo_ejecucion_if->definicion == 2) {
+			asignacion(nodo_ejecucion_if->izq, nodo_ejecucion_if->der);
+		}
+
+		if(nodo_ejecucion_if->definicion == 3) {
+			evaluar_condicional(nodo_ejecucion_if->izq, nodo_ejecucion_if->centro, NULL);
+		}
+
+		if(nodo_ejecucion_if->definicion == 4) {
+			evaluar_condicional(nodo_ejecucion_if->izq, nodo_ejecucion_if->centro, nodo_ejecucion_if->der);
+		}
+
+		if(nodo_ejecucion_if->definicion == 5) {
+			ejecutar_while(nodo_ejecucion_if->izq, nodo_ejecucion_if->der);
+		}
+
+		if(nodo_ejecucion_if->definicion == 6) {
+			leer(nodo_ejecucion_if->centro);
+		}
+
 		if(nodo_ejecucion_if->definicion == 7) {
 			imprimir(nodo_ejecucion_if->centro);
 		}
@@ -439,6 +460,26 @@ void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucio
 		}
 	} else {
 		if(nodo_ejecucion_else != NULL) {
+			if(nodo_ejecucion_else->definicion == 2) {
+				asignacion(nodo_ejecucion_else->izq, nodo_ejecucion_else->der);
+			}
+
+			if(nodo_ejecucion_else->definicion == 3) {
+				evaluar_condicional(nodo_ejecucion_else->izq, nodo_ejecucion_else->centro, NULL);
+			}
+
+			if(nodo_ejecucion_else->definicion == 4) {
+				evaluar_condicional(nodo_ejecucion_else->izq, nodo_ejecucion_else->centro, nodo_ejecucion_else->der);
+			}
+
+			if(nodo_ejecucion_else->definicion == 5) {
+				ejecutar_while(nodo_ejecucion_else->izq, nodo_ejecucion_else->der);
+			}
+
+			if(nodo_ejecucion_else->definicion == 6) {
+				leer(nodo_ejecucion_else->centro);
+			}
+
 			if(nodo_ejecucion_else->definicion == 7) {
 				imprimir(nodo_ejecucion_else->centro);
 			}
@@ -447,6 +488,90 @@ void evaluar_condicional(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucio
 				ejecutar_instrucciones(nodo_ejecucion_else->inicio_instrucciones);
 			}
 		}
+	}
+}
+
+void ejecutar_while(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_while) {
+	float comparador_izquierda = 0.0;
+	float comparador_derecha = -1.0;
+	int comparacion = 0;
+
+	if(nodo_comparacion->izq->definicion == 0) {
+		comparador_izquierda = nodo_comparacion->izq->direccion_tabla_simbolos->valor;
+	}
+
+	if(nodo_comparacion->izq->definicion == 1) {
+		comparador_izquierda = nodo_comparacion->izq->valor;
+	}
+
+	if(nodo_comparacion->der->definicion == 0) {
+		comparador_derecha = nodo_comparacion->der->direccion_tabla_simbolos->valor;
+	}
+	
+	if(nodo_comparacion->der->definicion == 1) {
+		comparador_derecha = nodo_comparacion->der->valor;
+	}
+
+	if(nodo_comparacion->definicion == 14) {
+		if(comparador_izquierda < comparador_derecha) {
+			comparacion = 1;
+		}
+	}
+
+	if(nodo_comparacion->definicion == 15) {
+		if(comparador_izquierda > comparador_derecha) {
+			comparacion = 1;
+		}
+	}
+
+	if(nodo_comparacion->definicion == 16) {
+		if(comparador_izquierda == comparador_derecha) {
+			comparacion = 1;
+		}
+	}
+
+	if(nodo_comparacion->definicion == 17) {
+		if(comparador_izquierda <= comparador_derecha) {
+			comparacion = 1;
+		}
+	}
+
+	if(nodo_comparacion->definicion == 18) {
+		if(comparador_izquierda >= comparador_derecha) {
+			comparacion = 1;
+		}
+	}
+
+	if(comparacion) {
+		if(nodo_ejecucion_while->definicion == 2) {
+			asignacion(nodo_ejecucion_while->izq, nodo_ejecucion_while->der);
+		}
+
+		if(nodo_ejecucion_while->definicion == 3) {
+			evaluar_condicional(nodo_ejecucion_while->izq, nodo_ejecucion_while->centro, NULL);
+		}
+
+		if(nodo_ejecucion_while->definicion == 4) {
+			evaluar_condicional(nodo_ejecucion_while->izq, nodo_ejecucion_while->centro, nodo_ejecucion_while->der);
+		}
+
+		if(nodo_ejecucion_while->definicion == 5) {
+			ejecutar_while(nodo_ejecucion_while->izq, nodo_ejecucion_while->der);
+		}
+
+		if(nodo_ejecucion_while->definicion == 6) {
+			leer(nodo_ejecucion_while->centro);
+		}
+
+		if(nodo_ejecucion_while->definicion == 7) {
+			imprimir(nodo_ejecucion_while->centro);
+		}
+
+		if(nodo_ejecucion_while->definicion == 8) {
+			ejecutar_instrucciones(nodo_ejecucion_while->inicio_instrucciones);
+		}
+
+		ejecutar_while(nodo_comparacion, nodo_ejecucion_while);
 	}
 }
 
@@ -468,21 +593,10 @@ void leer(nodo_arbol* nodo) {
 }
 
 
-
 void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	// Caso en el que se debe ejecutar una asignacion
 	if(nodo->inicio->definicion == 2) {
 		asignacion(nodo->inicio->izq, nodo->inicio->der);
-	}
-
-	// Caso en el que se debe ejecutar un read
-	if(nodo->inicio->definicion == 6) {
-		leer(nodo->inicio->centro);
-	}
-
-	// Caso en el que se debe ejecutar un print
-	if(nodo->inicio->definicion == 7) {
-		imprimir(nodo->inicio->centro);
 	}
 
 	// Caso en el que se debe ejecutar un if...fi
@@ -493,6 +607,21 @@ void ejecutar_instrucciones(nodo_punto_y_coma* nodo) {
 	// Caso en el que se debe ejecutar un if...else
 	if(nodo->inicio->definicion == 4) {
 		evaluar_condicional(nodo->inicio->izq, nodo->inicio->centro, nodo->inicio->der);
+	}
+
+	// Caso en el que se debe ejecutar un while
+	if(nodo->inicio->definicion == 5) {
+		ejecutar_while(nodo->inicio->izq, nodo->inicio->der);
+	}
+
+	// Caso en el que se debe ejecutar un read
+	if(nodo->inicio->definicion == 6) {
+		leer(nodo->inicio->centro);
+	}
+
+	// Caso en el que se debe ejecutar un print
+	if(nodo->inicio->definicion == 7) {
+		imprimir(nodo->inicio->centro);
 	}
 
 	if(nodo->siguiente_instruccion != NULL) {
