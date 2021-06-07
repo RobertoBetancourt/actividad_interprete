@@ -1,11 +1,16 @@
 /*	
+		Roberto Betancourt Hernández - A01551525
+		Luis Edgar Flores Carpinteyro - A01329971
+		Alan Rodrigo Albert Morán - A01328928
+		
 		Los comandos para compilar y ejecutar son: 
     	flex calculadora.l
     	bison -d calculadora.y
     	gcc lex.yy.c calculadora.tab.c -lfl -lm
     	./a.out prueba.txt
 */
-/* Archivo con el reconocedor léxico para la calculadora */
+
+/* Archivo con el reconocedor léxico */
 %{
 #include<stdlib.h>
 #include<math.h>
@@ -14,8 +19,6 @@
 #include "calculadora.tab.h"
 
 int numero_linea = 1;
-
-// {yylval.numero_flotante = atof(yytext); return FLOTANTE;}
 %}
 
 LETRA [A-Za-z]
@@ -55,6 +58,7 @@ DIGITO [1-9][0-9]*
 ":"                         			{return DOS_PUNTOS;}
 ";"                         			{return PUNTO_Y_COMA;}
 [A-Za-z$_][0-9a-zA-Z$_]*    			{strcpy(yylval.cadena, yytext); return IDENTIFICADOR;}
+.|\n    													;
 
 %%
 
