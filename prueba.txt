@@ -1,0 +1,26 @@
+  a: int;
+  b: int
+
+fun factorial(x: int, y: int): int
+  acumulador : int;
+  aux : int
+begin
+   acumulador <- 1;
+   aux <- 1;
+   while (aux <= x)
+   begin
+      acumulador <- acumulador * aux;
+      aux <- aux + 1
+   end;
+   return acumulador
+end
+
+
+begin
+   read a;
+
+   b <- factorial(a);
+   print a;
+   print b
+
+end
