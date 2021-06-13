@@ -1,0 +1,25 @@
+  x : int;
+  y : int;
+  res : int;
+  aux: int
+begin
+   read x;
+   read y;
+
+   res <- 0;
+   aux <- 5;
+   if (x < 0)
+   begin
+      print x;
+      print y
+   end
+   else
+   begin
+      while (aux >= 0)
+      begin
+        res <- res + x;
+	      aux <- aux - 1
+      end
+   end;
+   print res
+end

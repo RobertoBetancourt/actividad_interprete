@@ -5,11 +5,14 @@ z : int;
 temp : int
 
 begin
-temp <- 1;
-   z <- 1;
-   res <- 10;
+  temp <- 1;
+   z <- 2;
+   res <- 15;
    read x;
-   for y <- z to x step z do
-      res <- res + y;
+   for y <- 1 to x step z do
+    begin
+      print y;
+      res <- res + y
+    end;
    print res
 end

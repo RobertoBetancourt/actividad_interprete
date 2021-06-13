@@ -4,9 +4,9 @@
 		Alan Rodrigo Albert Morán - A01328928
 		
 		Los comandos para compilar y ejecutar son: 
-    	flex calculadora.l
-    	bison -d calculadora.y
-    	gcc lex.yy.c calculadora.tab.c -lfl -lm
+    	flex interprete.l
+    	bison -d interprete.y
+    	gcc lex.yy.c interprete.tab.c -lfl -lm
     	./a.out prueba.txt
 */
 
@@ -16,13 +16,10 @@
 #include<math.h>
   /* Se incluye el archivo generado por bison para tener las definiciones
      de los tokens */
-#include "calculadora.tab.h"
+#include "interprete.tab.h"
 
 int numero_linea = 1;
 %}
-
-LETRA [A-Za-z]
-DIGITO [1-9][0-9]*
 
 %%
 
