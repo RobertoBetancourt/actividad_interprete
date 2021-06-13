@@ -1,0 +1,15 @@
+x : int;
+y : int;
+res : int;
+z : int;
+temp : int
+
+begin
+temp <- 1;
+   z <- 1;
+   res <- 10;
+   read x;
+   for y <- z to x step z do
+      res <- res + y;
+   print res
+end

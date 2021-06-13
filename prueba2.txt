@@ -1,0 +1,14 @@
+  x : int;
+  y : int;
+  res : int;
+  aux: int
+begin
+  x <- 2;
+  read aux;
+  while (aux > 0)
+    begin
+      res <- res + x;
+	    aux <- aux - 1
+    end;
+  print res
+end
