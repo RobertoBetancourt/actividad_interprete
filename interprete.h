@@ -4,16 +4,40 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct estructura_tabla_simbolos nodo_lista_ligada;
+typedef struct estructura_tabla_simbolos nodo_tabla_de_simbolos;
 typedef struct estructura_arbol nodo_arbol;
 typedef struct estructura_punto_y_coma nodo_punto_y_coma;
 typedef struct estructura_programa nodo_programa;
+typedef struct estructura_parametros nodo_parametro;
+typedef struct estructura_funciones nodo_funcion;
+typedef struct estructura_tabla_y_parametro nodo_tabla_y_parametro;
+
+struct estructura_tabla_y_parametro {
+	nodo_tabla_de_simbolos* nodo_tabla;
+	nodo_parametro* nodo_parametro;
+	nodo_tabla_y_parametro* nodo_siguiente;
+};
+
+struct estructura_funciones {
+	char nombre_funcion[20];
+	int tipo; // -1 es void, 0 es int, 1 es float
+	nodo_tabla_de_simbolos* tabla_de_simbolos_local;
+	int num_parametros;
+	nodo_parametro* parametro_inicial;
+	nodo_punto_y_coma* inicio_instrucciones;
+	nodo_funcion* siguiente_funcion;
+};
+
+struct estructura_parametros {
+	char nombre_parametro[20];
+	nodo_parametro* siguiente_parametro;
+};
 
 struct estructura_tabla_simbolos {
 	char nombre_variable[20];
 	int tipo; // 0 es int, 1 es float
 	float valor;
-	nodo_lista_ligada* simbolo_siguiente;
+	nodo_tabla_de_simbolos* simbolo_siguiente;
 };
 
 struct estructura_arbol {
@@ -26,7 +50,7 @@ struct estructura_arbol {
 	nodo_arbol* centro; // Campo utilizado solo en los if y print
 	nodo_arbol* der;
 	nodo_arbol* step; // Campo utilizado solo en los for
-	nodo_lista_ligada* direccion_tabla_simbolos; // Campo utilizado solo para variables
+	nodo_tabla_de_simbolos* direccion_tabla_simbolos; // Campo utilizado solo para variables
 };
 
 struct estructura_punto_y_coma {
@@ -35,7 +59,7 @@ struct estructura_punto_y_coma {
 };
 
 struct estructura_programa {
-	nodo_lista_ligada* inicio_tabla_de_simbolos;
+	nodo_tabla_de_simbolos* inicio_tabla_de_simbolos;
 	nodo_punto_y_coma* inicio_instrucciones;
 };
 
@@ -44,17 +68,21 @@ extern int yylex();
 extern FILE *yyin;
 int yyerror(char const * s);
 
-// nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar);
+// nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_tabla_de_simbolos* nodo_a_buscar);
 nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, char nombre_variable[20], nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der, nodo_arbol* step);
 nodo_arbol* asignar_tipo(nodo_arbol* nodo);
 
-nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int tipo); // 0 es int, 1 es float
-nodo_lista_ligada* unir_nodos_de_tabla_de_simbolos(nodo_lista_ligada* nodo1, nodo_lista_ligada* nodo2);
+nodo_tabla_de_simbolos* crear_nodo_de_tabla_de_simbolos(char nombre_variable[20], int tipo); // 0 es int, 1 es float
+nodo_tabla_de_simbolos* unir_nodos_de_tabla_de_simbolos(nodo_tabla_de_simbolos* nodo1, nodo_tabla_de_simbolos* nodo2);
 
 nodo_punto_y_coma* crear_instruccion(nodo_arbol* inicio, nodo_punto_y_coma* siguiente_instruccion);
 nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_coma* nodo2);
 
-nodo_programa* crear_nodo_programa(nodo_lista_ligada* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones);
+nodo_parametro* crear_nodo_parametro(char nombre_parametro[20], nodo_parametro* siguiente_parametro);
+nodo_tabla_y_parametro* unir_nodo_tabla_y_parametro(nodo_tabla_y_parametro* nodo1, nodo_tabla_y_parametro* nodo2);
+nodo_tabla_y_parametro* crear_nodo_tabla_y_parametro(nodo_tabla_de_simbolos* nodo_tabla, nodo_parametro* nodo_parametro, nodo_tabla_y_parametro* nodo_siguiente);
+
+nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones);
 
 int tipo_de_entrada(const char *str);
 
@@ -63,6 +91,8 @@ float sumar(nodo_arbol* izq, nodo_arbol* der);
 float restar(nodo_arbol* izq, nodo_arbol* der);
 float multiplicar(nodo_arbol* izq, nodo_arbol* der);
 float dividir(nodo_arbol* izq, nodo_arbol* der);
+
+void imprimir_nodos_tabla_y_parametro(nodo_tabla_y_parametro* nodo);
 
 void imprimir(nodo_arbol* nodo);
 void asignar_valor(nodo_arbol* nodo_izq, nodo_arbol* nodo_der);
@@ -73,15 +103,15 @@ void ejecutar_for(nodo_arbol* nodo_inicializacion, nodo_arbol* nodo_finalizacion
 void continuar_for(nodo_arbol* nodo_inicializacion, nodo_arbol* nodo_finalizacion, nodo_arbol* nodo_ejecucion_for, nodo_arbol* nodo_step, float valor_finalizacion, float step);
 void ejecutar_instruccion(nodo_arbol* nodo);
 void ejecutar_lista_de_instrucciones(nodo_punto_y_coma* nodo);
-void revisar_tipos(nodo_punto_y_coma* nodo, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_for(nodo_arbol* nodo_for, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_if(nodo_arbol* nodo_if, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_while(nodo_arbol* nodo_while, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_read(nodo_arbol* nodo_read, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_print(nodo_arbol* nodo_read, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipos_asignacion(nodo_arbol* nodo_read, nodo_lista_ligada* inicio_tabla_de_simbolos);
-void revisar_tipo_nodo(nodo_arbol* nodo_read, nodo_lista_ligada* inicio_tabla_de_simbolos);
+void revisar_tipos(nodo_punto_y_coma* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_for(nodo_arbol* nodo_for, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_if(nodo_arbol* nodo_if, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_while(nodo_arbol* nodo_while, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_read(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_print(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_asignacion(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipo_nodo(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
 void ejecutar_programa(nodo_programa* programa);
 
 // Función que regresa el valor de un nodo
@@ -261,7 +291,7 @@ void ejecutar_lista_de_instrucciones(nodo_punto_y_coma* nodo) {
 }
 
 // INICIAN FUNCIONES PARA REVISAR Y ASIGNAR TIPOS
-void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_lista_ligada* nodo_a_buscar) {
+void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_tabla_de_simbolos* nodo_a_buscar) {
 	if(strcmp(nodo_variable->nombre_variable, nodo_a_buscar->nombre_variable) == 0) {
 		nodo_variable->tipo = nodo_a_buscar->tipo;
 		nodo_variable->direccion_tabla_simbolos = nodo_a_buscar;
@@ -274,7 +304,7 @@ void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_lista_ligada* 
 	}
 }
 
-void revisar_tipo_nodo(nodo_arbol* nodo, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipo_nodo(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	if(nodo != NULL) {
 		switch(nodo->definicion) {	
 			case 0: asignar_informacion_variable(nodo, inicio_tabla_de_simbolos); break;
@@ -303,7 +333,7 @@ void revisar_tipo_nodo(nodo_arbol* nodo, nodo_lista_ligada* inicio_tabla_de_simb
 	}
 }
 
-void revisar_tipos_asignacion(nodo_arbol* nodo_asignacion, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_asignacion(nodo_arbol* nodo_asignacion, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	if(nodo_asignacion->izq->definicion != 0) {
 		yyerror("an identifier must appear to the left\n");
 	}
@@ -317,35 +347,35 @@ void revisar_tipos_asignacion(nodo_arbol* nodo_asignacion, nodo_lista_ligada* in
 	nodo_asignacion->tipo = nodo_asignacion->izq->tipo;
 }
 
-void revisar_tipos_read(nodo_arbol* nodo_read, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_read(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	asignar_informacion_variable(nodo_read->centro, inicio_tabla_de_simbolos);
 	nodo_read->tipo = nodo_read->centro->tipo;
 }
 
-void revisar_tipos_print(nodo_arbol* nodo_print, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_print(nodo_arbol* nodo_print, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	revisar_tipo_nodo(nodo_print->centro, inicio_tabla_de_simbolos);
 	nodo_print->tipo = nodo_print->centro->tipo;
 }
 
-void revisar_tipos_while(nodo_arbol* nodo_while, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_while(nodo_arbol* nodo_while, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	revisar_tipo_nodo(nodo_while->izq, inicio_tabla_de_simbolos);
 	revisar_tipo_nodo(nodo_while->der, inicio_tabla_de_simbolos);
 }
 
-void revisar_tipos_if(nodo_arbol* nodo_if, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_if(nodo_arbol* nodo_if, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	revisar_tipo_nodo(nodo_if->izq, inicio_tabla_de_simbolos);
 	revisar_tipo_nodo(nodo_if->centro, inicio_tabla_de_simbolos);
 	revisar_tipo_nodo(nodo_if->der, inicio_tabla_de_simbolos);
 }
 
-void revisar_tipos_for(nodo_arbol* nodo_for, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos_for(nodo_arbol* nodo_for, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	revisar_tipo_nodo(nodo_for->izq, inicio_tabla_de_simbolos);
 	revisar_tipo_nodo(nodo_for->centro, inicio_tabla_de_simbolos);
 	ejecutar_revision_de_tipos(nodo_for->der, inicio_tabla_de_simbolos);
 	revisar_tipo_nodo(nodo_for->step, inicio_tabla_de_simbolos);
 }
 
-void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	// Se ejecuta la revision de tipos dependiendo de si se trata de una asignación, un for, while, print, etc.
 	switch(nodo->definicion) {
 		case 2: revisar_tipos_asignacion(nodo, inicio_tabla_de_simbolos); break;
@@ -361,7 +391,7 @@ void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_lista_ligada* inicio_tabl
 }
 
 // Función que revisa tipos
-void revisar_tipos(nodo_punto_y_coma* nodo, nodo_lista_ligada* inicio_tabla_de_simbolos) {
+void revisar_tipos(nodo_punto_y_coma* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	ejecutar_revision_de_tipos(nodo->inicio, inicio_tabla_de_simbolos);
 	// Si existe, se ejecuta la siguiente instrucción
 	if(nodo->siguiente_instruccion != NULL) {
@@ -371,16 +401,16 @@ void revisar_tipos(nodo_punto_y_coma* nodo, nodo_lista_ligada* inicio_tabla_de_s
 // TERMINAN FUNCIONES PARA REVISAR Y ASIGNAR TIPOS
 
 // Se crea la tabla de símbolos con las distintas variables
-nodo_lista_ligada* unir_nodos_de_tabla_de_simbolos(nodo_lista_ligada* nodo1, nodo_lista_ligada* nodo2) {
+nodo_tabla_de_simbolos* unir_nodos_de_tabla_de_simbolos(nodo_tabla_de_simbolos* nodo1, nodo_tabla_de_simbolos* nodo2) {
 	// El nodo1 guarda un apuntador hacia el nodo2
 	nodo1->simbolo_siguiente = nodo2;
 	return nodo1;
 }
 
-nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char variable[20], int tipo) {
+nodo_tabla_de_simbolos* crear_nodo_de_tabla_de_simbolos(char variable[20], int tipo) {
 	// Se crea un nodo en el que se almacenará la variable
-	nodo_lista_ligada* nuevo_nodo;
-	nuevo_nodo = (nodo_lista_ligada*)malloc( sizeof(nodo_lista_ligada) );
+	nodo_tabla_de_simbolos* nuevo_nodo;
+	nuevo_nodo = (nodo_tabla_de_simbolos*)malloc( sizeof(nodo_tabla_de_simbolos) );
 
 	// Se almacenan los datos en el nodo
 	nuevo_nodo->tipo = tipo;
@@ -392,7 +422,7 @@ nodo_lista_ligada* crear_nodo_de_tabla_de_simbolos(char variable[20], int tipo) 
 }
 
 // Se busca un identificador en la tabla de símbolos
-// nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_lista_ligada* nodo_a_buscar) {
+// nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_tabla_de_simbolos* nodo_a_buscar) {
 // 	if(nodo_a_buscar == NULL) {
 // 		yyerror("Identifier not found");
 // 		return NULL;
@@ -494,7 +524,49 @@ nodo_punto_y_coma* unir_instrucciones(nodo_punto_y_coma* nodo1, nodo_punto_y_com
 	return nodo1;
 }
 
-nodo_programa* crear_nodo_programa(nodo_lista_ligada* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones) {
+nodo_parametro* crear_nodo_parametro(char nombre_parametro[20], nodo_parametro* siguiente_parametro) {
+	// Se crea un nodo
+	nodo_parametro* nuevo_nodo;
+	nuevo_nodo = (nodo_parametro*)malloc( sizeof(nodo_parametro) );
+
+	// Se almacenan los datos en el nodo
+	/* nuevo_nodo->nombre_parametro = nombre_parametro; */
+	strncpy(nuevo_nodo->nombre_parametro, nombre_parametro, 20);
+	nuevo_nodo->siguiente_parametro = siguiente_parametro;
+
+	return nuevo_nodo;
+}
+
+nodo_tabla_y_parametro* crear_nodo_tabla_y_parametro(nodo_tabla_de_simbolos* nodo_tabla, nodo_parametro* nodo_parametro, nodo_tabla_y_parametro* nodo_siguiente) {
+	// Se crea un nodo
+	nodo_tabla_y_parametro* nuevo_nodo;
+	nuevo_nodo = (nodo_tabla_y_parametro*)malloc( sizeof(nodo_tabla_y_parametro) );
+
+	// Se almacenan los datos en el nodo
+	nuevo_nodo->nodo_tabla = nodo_tabla;
+	nuevo_nodo->nodo_parametro = nodo_parametro;
+	nuevo_nodo->nodo_siguiente = nodo_siguiente;
+
+	return nuevo_nodo;
+}
+
+// Se crea la tabla de símbolos con las distintas variables
+nodo_tabla_y_parametro* unir_nodo_tabla_y_parametro(nodo_tabla_y_parametro* nodo1, nodo_tabla_y_parametro* nodo2) {
+	// El nodo1 guarda un apuntador hacia el nodo2
+	nodo1->nodo_siguiente = nodo2;
+	return nodo1;
+}
+
+void imprimir_nodos_tabla_y_parametro(nodo_tabla_y_parametro* nodo) {
+	printf("nodo->nodo_tabla->nombre_variable: %s\n", nodo->nodo_tabla->nombre_variable);
+	printf("No hubo segmentation fault\n");
+
+	if(nodo->nodo_siguiente != NULL) {
+		imprimir_nodos_tabla_y_parametro(nodo->nodo_siguiente);
+	}
+}
+
+nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones) {
 	nodo_programa* nodo;
 	nodo = (nodo_programa*)malloc( sizeof(nodo_programa) );
 	nodo->inicio_instrucciones = inicio_instrucciones;

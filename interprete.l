@@ -33,6 +33,7 @@ int numero_linea = 1;
 "/"                         			{return DIVIDE;}
 "("                         			{return PARENI;}
 ")"                         			{return PAREND;}
+"fun"															{return FUNCION;}
 "int"			                  			{return TIPO_ENTERO;}
 "float"		          	      			{return TIPO_FLOTANTE;}
 "begin"                     			{return BEGIN_RESERVADA;}
@@ -52,6 +53,7 @@ int numero_linea = 1;
 ">"                         			{return MAYOR_QUE;}
 ">="                        			{return MAYOR_O_IGUAL_QUE;}
 "="                         			{return IGUAL_QUE;}
+","                         			{return COMA;}
 ":"                         			{return DOS_PUNTOS;}
 ";"                         			{return PUNTO_Y_COMA;}
 [A-Za-z$_][0-9a-zA-Z$_]*    			{strcpy(yylval.cadena, yytext); return IDENTIFICADOR;}
