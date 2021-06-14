@@ -26,6 +26,7 @@ nodo_programa* root = NULL;
 	struct estructura_parametros* nodo_parametro;
 	struct estructura_tabla_y_parametro* nodo_tabla_y_parametro;
 	struct estructura_funciones* nodo_funcion;
+	struct estructura_argumento* nodo_argumento;
 }
 
 %token ASIGNACION SUMA RESTA DIVIDE MULTI PAREND PARENI DOS_PUNTOS PUNTO_Y_COMA BEGIN_RESERVADA END_RESERVADA IF_RESERVADA FI_RESERVADA ELSE_RESERVADA WHILE_RESERVADA FOR_RESERVADA TO_RESERVADA STEP_RESERVADA DO_RESERVADA READ_RESERVADA RETURN_RESERVADA PRINT_RESERVADA MENOR_QUE MAYOR_QUE IGUAL_QUE MENOR_O_IGUAL_QUE MAYOR_O_IGUAL_QUE COMA
@@ -38,6 +39,7 @@ nodo_programa* root = NULL;
 %type <nodo_punto_y_coma> stmt_lst opt_stmts
 %type <nodo_tabla_y_parametro> param params oparams
 %type <nodo_funcion> opt_fun_decls fun_decls fun_decl
+%type <nodo_argumento> expr_lst opt_exprs
 %start prog
 
 %%
@@ -64,7 +66,7 @@ opt_fun_decls : /*epsilon*/									{$$ = NULL;}
 							| fun_decls										{$$ = $$;}
 ;
 
-fun_decls : fun_decls fun_decl
+fun_decls : fun_decls fun_decl							{$$ = unir_funciones($1, $2);}
 					| fun_decl												{$$ = $$;}
 ;
 
@@ -138,11 +140,22 @@ term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, "
      | factor											{ $$ = $$; }
 ;
 
-factor : PARENI expr PAREND				{$$ = $2;}
-       | IDENTIFICADOR						{$$ = crear_nodo_arbol(0, -1, -1, $1, NULL, NULL, NULL, NULL, NULL);}
-			 | ENTERO										{$$ = crear_nodo_arbol(1, 0, $1, "", NULL, NULL, NULL, NULL, NULL);}
-			 | FLOTANTE									{$$ = crear_nodo_arbol(1, 1, $1, "", NULL, NULL, NULL, NULL, NULL);}
+factor : PARENI expr PAREND												{$$ = $2;}
+       | IDENTIFICADOR														{$$ = crear_nodo_arbol(0, -1, -1, $1, NULL, NULL, NULL, NULL, NULL);}
+			 | ENTERO																		{$$ = crear_nodo_arbol(1, 0, $1, "", NULL, NULL, NULL, NULL, NULL);}
+			 | FLOTANTE																	{$$ = crear_nodo_arbol(1, 1, $1, "", NULL, NULL, NULL, NULL, NULL);}
+			 | IDENTIFICADOR PARENI opt_exprs PAREND		{nodo_arbol* nodo = crear_nodo_arbol(21, -1, -1, $1, NULL, NULL, NULL, NULL, NULL);
+			 																						agregar_argumentos(nodo, $3);
+																									$$ = nodo;}
 ;
+
+opt_exprs	:	/*epsilon*/														{$$ = NULL;}
+					|	expr_lst															{$$ = $$;}
+;
+
+expr_lst	:	expr COMA expr_lst										{nodo_argumento* nodo = crear_argumento($1);
+																									$$ = unir_argumentos(nodo, $3);}
+					|	expr																	{$$ = crear_argumento($1);}
 
 expression : expr MENOR_QUE expr							{	nodo_arbol* nodo = crear_nodo_arbol(14, -1, -1, "", NULL, $1, NULL, $3, NULL);
 																								$$ = nodo;	}
