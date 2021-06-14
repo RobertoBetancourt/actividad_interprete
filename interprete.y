@@ -25,22 +25,24 @@ nodo_programa* root = NULL;
 	struct estructura_punto_y_coma* nodo_punto_y_coma;
 	struct estructura_parametros* nodo_parametro;
 	struct estructura_tabla_y_parametro* nodo_tabla_y_parametro;
+	struct estructura_funciones* nodo_funcion;
 }
 
-%token ASIGNACION SUMA RESTA DIVIDE MULTI PAREND PARENI DOS_PUNTOS PUNTO_Y_COMA BEGIN_RESERVADA END_RESERVADA IF_RESERVADA FI_RESERVADA ELSE_RESERVADA WHILE_RESERVADA FOR_RESERVADA TO_RESERVADA STEP_RESERVADA DO_RESERVADA READ_RESERVADA PRINT_RESERVADA MENOR_QUE MAYOR_QUE IGUAL_QUE MENOR_O_IGUAL_QUE MAYOR_O_IGUAL_QUE FUNCION COMA
+%token ASIGNACION SUMA RESTA DIVIDE MULTI PAREND PARENI DOS_PUNTOS PUNTO_Y_COMA BEGIN_RESERVADA END_RESERVADA IF_RESERVADA FI_RESERVADA ELSE_RESERVADA WHILE_RESERVADA FOR_RESERVADA TO_RESERVADA STEP_RESERVADA DO_RESERVADA READ_RESERVADA RETURN_RESERVADA PRINT_RESERVADA MENOR_QUE MAYOR_QUE IGUAL_QUE MENOR_O_IGUAL_QUE MAYOR_O_IGUAL_QUE COMA
 %token <numero_entero> ENTERO TIPO_ENTERO TIPO_FLOTANTE
 %token <numero_flotante> FLOTANTE
-%token <cadena> IDENTIFICADOR
+%token <cadena> IDENTIFICADOR FUNCION
 %type <numero_entero> tipo
 %type <nodo_lista_ligada> decl decl_lst opt_decls
 %type <nodo_arbol> factor term expr stmt expression
 %type <nodo_punto_y_coma> stmt_lst opt_stmts
 %type <nodo_tabla_y_parametro> param params oparams
+%type <nodo_funcion> opt_fun_decls fun_decls fun_decl
 %start prog
 
 %%
 
-prog : opt_decls opt_fun_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		{root = crear_nodo_programa($1, $4);}
+prog : opt_decls opt_fun_decls BEGIN_RESERVADA opt_stmts END_RESERVADA		{root = crear_nodo_programa($1, $4, $2);}
 ;
 
 opt_decls : /*epsilon*/											{$$ = NULL;}
@@ -58,16 +60,22 @@ tipo : TIPO_ENTERO													{$$ = 0;}
 		 | TIPO_FLOTANTE												{$$ = 1;}
 ;
 
-opt_fun_decls : /*epsilon*/
-							| fun_decls
+opt_fun_decls : /*epsilon*/									{$$ = NULL;}
+							| fun_decls										{$$ = $$;}
 ;
 
 fun_decls : fun_decls fun_decl
-					| fun_decl
+					| fun_decl												{$$ = $$;}
 ;
 
-fun_decl : FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA
-				 | FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo PUNTO_Y_COMA
+fun_decl : FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA			{ nodo_tabla_de_simbolos* inicio_tabla_funcion = formar_tabla_de_simbolos_funcion($4, $8);
+																																																																nodo_parametro* inicio_parametros = formar_lista_de_parametros($4);
+																																																																int numero_parametros = obtener_numero_parametros(inicio_parametros, 0);
+																																																																$$ = crear_funcion($1, $7, inicio_tabla_funcion, numero_parametros, inicio_parametros, $10, NULL);}
+				 | FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo PUNTO_Y_COMA																						{ nodo_tabla_de_simbolos* inicio_tabla_funcion = formar_tabla_de_simbolos_funcion($4, NULL);
+																																																																nodo_parametro* inicio_parametros = formar_lista_de_parametros($4);
+																																																																int numero_parametros = obtener_numero_parametros(inicio_parametros, 0);
+																																																																$$ = crear_funcion($1, $7, inicio_tabla_funcion, numero_parametros, inicio_parametros, NULL, NULL);}
 ;
 
 oparams : /*epsilon*/												{ $$ = NULL; }
@@ -109,6 +117,7 @@ stmt : IDENTIFICADOR ASIGNACION expr						{ nodo_arbol* nodo_identificador = cre
 																						 			
 																						 			$$ = nodo;	}
 		 | BEGIN_RESERVADA opt_stmts END_RESERVADA	{$$ = crear_nodo_arbol(8, -1, -1, "", $2, NULL, NULL, NULL, NULL);}
+		 | RETURN_RESERVADA expr										{$$ = crear_nodo_arbol(20, -1, -1, "", NULL, NULL, $2, NULL, NULL);}
 ;
 
 expr : expr SUMA term							{	nodo_arbol* nodo = crear_nodo_arbol(10, -1, -1, "", NULL, $1, NULL, $3, NULL);

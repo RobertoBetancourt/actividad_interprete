@@ -48,6 +48,7 @@ int numero_linea = 1;
 "read"                      			{return READ_RESERVADA;}
 "print"                     			{return PRINT_RESERVADA;}
 "while"                     			{return WHILE_RESERVADA;}
+"return"                     			{return RETURN_RESERVADA;}
 "<"                         			{return MENOR_QUE;}
 "<="                        			{return MENOR_O_IGUAL_QUE;}
 ">"                         			{return MAYOR_QUE;}

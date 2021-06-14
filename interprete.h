@@ -41,7 +41,7 @@ struct estructura_tabla_simbolos {
 };
 
 struct estructura_arbol {
-	int definicion; // 0 es variable, 1 es constante, 2 es asignacion, 3 es if fi, 4 es if else, 5 es while, 6 es read, 7 es print, 8 es begin, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división, 14 es menor que 
+	int definicion; // 0 es variable, 1 es constante, 2 es asignacion, 3 es if fi, 4 es if else, 5 es while, 6 es read, 7 es print, 8 es begin, 10 es suma, 11 es resta, 12 es multiplicación, 13 es división, 14 es menor que, 19 es for, 20 es return
 	int tipo; // 0 es int, 1 es float
 	float valor; // Campo utilizado solo para constantes
 	char nombre_variable[20]; // Campo utilizado solo para variables
@@ -61,6 +61,7 @@ struct estructura_punto_y_coma {
 struct estructura_programa {
 	nodo_tabla_de_simbolos* inicio_tabla_de_simbolos;
 	nodo_punto_y_coma* inicio_instrucciones;
+	nodo_funcion* inicio_funciones;
 };
 
 extern int numero_linea;
@@ -82,7 +83,9 @@ nodo_parametro* crear_nodo_parametro(char nombre_parametro[20], nodo_parametro* 
 nodo_tabla_y_parametro* unir_nodo_tabla_y_parametro(nodo_tabla_y_parametro* nodo1, nodo_tabla_y_parametro* nodo2);
 nodo_tabla_y_parametro* crear_nodo_tabla_y_parametro(nodo_tabla_de_simbolos* nodo_tabla, nodo_parametro* nodo_parametro, nodo_tabla_y_parametro* nodo_siguiente);
 
-nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones);
+nodo_funcion* crear_funcion(char nombre_funcion[20], int tipo, nodo_tabla_de_simbolos* tabla_de_simbolos_local, int num_parametros, nodo_parametro* parametro_inicial, nodo_punto_y_coma* inicio_instrucciones, nodo_funcion* siguiente_funcion);
+
+nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_funcion* inicio_funciones);
 
 int tipo_de_entrada(const char *str);
 
@@ -113,6 +116,14 @@ void revisar_tipos_print(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_t
 void revisar_tipos_asignacion(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
 void revisar_tipo_nodo(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
 void ejecutar_programa(nodo_programa* programa);
+
+void unir_parametros_con_variables_locales(nodo_tabla_y_parametro* nodo_tabla_y_parametro, nodo_tabla_de_simbolos* inicio_variables_locales);
+nodo_tabla_de_simbolos* formar_tabla_de_simbolos_funcion(nodo_tabla_y_parametro* nodo_tabla_y_parametro, nodo_tabla_de_simbolos* inicio_variables_locales);
+void unir_parametros(nodo_tabla_y_parametro* nodo_tabla_y_parametro);
+nodo_parametro* formar_lista_de_parametros(nodo_tabla_y_parametro* nodo_tabla_y_parametro);
+void imprimir_tabla_de_simbolos(nodo_tabla_de_simbolos* nodo_tabla);
+void imprimir_parametros(nodo_parametro* nodo_parametro);
+int obtener_numero_parametros(nodo_parametro* nodo_parametro, int contador);
 
 // Función que regresa el valor de un nodo
 float obtener_valor_nodo(nodo_arbol* nodo) {
@@ -559,24 +570,103 @@ nodo_tabla_y_parametro* unir_nodo_tabla_y_parametro(nodo_tabla_y_parametro* nodo
 
 void imprimir_nodos_tabla_y_parametro(nodo_tabla_y_parametro* nodo) {
 	printf("nodo->nodo_tabla->nombre_variable: %s\n", nodo->nodo_tabla->nombre_variable);
-	printf("No hubo segmentation fault\n");
 
 	if(nodo->nodo_siguiente != NULL) {
 		imprimir_nodos_tabla_y_parametro(nodo->nodo_siguiente);
 	}
 }
 
-nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones) {
+nodo_programa* crear_nodo_programa(nodo_tabla_de_simbolos* inicio_tabla_de_simbolos, nodo_punto_y_coma* inicio_instrucciones, nodo_funcion* inicio_funciones) {
 	nodo_programa* nodo;
 	nodo = (nodo_programa*)malloc( sizeof(nodo_programa) );
 	nodo->inicio_instrucciones = inicio_instrucciones;
 	nodo->inicio_tabla_de_simbolos = inicio_tabla_de_simbolos;
+	nodo->inicio_funciones = inicio_funciones;
 	return nodo;
 }
 
 void ejecutar_programa(nodo_programa* programa) {
 	revisar_tipos(programa->inicio_instrucciones, programa->inicio_tabla_de_simbolos);
 	ejecutar_lista_de_instrucciones(programa->inicio_instrucciones);
+}
+
+nodo_funcion* crear_funcion(char nombre_funcion[20], int tipo, nodo_tabla_de_simbolos* tabla_de_simbolos_local, int num_parametros, nodo_parametro* parametro_inicial, nodo_punto_y_coma* inicio_instrucciones, nodo_funcion* siguiente_funcion) {
+	nodo_funcion* nodo;
+	nodo = (nodo_funcion*)malloc( sizeof(nodo_funcion) );
+
+	strncpy(nodo->nombre_funcion, nombre_funcion, 20);
+	nodo->tipo = tipo;
+	nodo->tabla_de_simbolos_local = tabla_de_simbolos_local;
+	nodo->num_parametros = num_parametros;
+	nodo->parametro_inicial = parametro_inicial;
+	nodo->inicio_instrucciones = inicio_instrucciones;
+	nodo->siguiente_funcion = siguiente_funcion;
+	return nodo;
+}
+
+
+void unir_parametros_con_variables_locales(nodo_tabla_y_parametro* nodo_tabla_y_parametro, nodo_tabla_de_simbolos* inicio_variables_locales) {
+	if(nodo_tabla_y_parametro->nodo_siguiente != NULL) {
+		nodo_tabla_y_parametro->nodo_tabla->simbolo_siguiente = nodo_tabla_y_parametro->nodo_siguiente->nodo_tabla;
+		unir_parametros_con_variables_locales(nodo_tabla_y_parametro->nodo_siguiente, inicio_variables_locales);
+	} else {
+		nodo_tabla_y_parametro->nodo_tabla->simbolo_siguiente = inicio_variables_locales;
+	}
+}
+
+nodo_tabla_de_simbolos* formar_tabla_de_simbolos_funcion(nodo_tabla_y_parametro* nodo_tabla_y_parametro, nodo_tabla_de_simbolos* inicio_variables_locales) {
+	if(nodo_tabla_y_parametro == NULL) {
+		if(inicio_variables_locales == NULL) {
+			return NULL;
+		} else {
+			return inicio_variables_locales;
+		}
+	}
+
+	unir_parametros_con_variables_locales(nodo_tabla_y_parametro, inicio_variables_locales);
+	return nodo_tabla_y_parametro->nodo_tabla;	
+}
+
+void unir_parametros(nodo_tabla_y_parametro* nodo_tabla_y_parametro) {
+	if(nodo_tabla_y_parametro->nodo_siguiente != NULL) {
+		nodo_tabla_y_parametro->nodo_parametro->siguiente_parametro = nodo_tabla_y_parametro->nodo_siguiente->nodo_parametro;
+		unir_parametros(nodo_tabla_y_parametro->nodo_siguiente);
+	}
+}
+
+nodo_parametro* formar_lista_de_parametros(nodo_tabla_y_parametro* nodo_tabla_y_parametro) {
+	if(nodo_tabla_y_parametro == NULL) {
+		return NULL;
+	}
+
+	unir_parametros(nodo_tabla_y_parametro);
+	return nodo_tabla_y_parametro->nodo_parametro;
+}
+
+void imprimir_tabla_de_simbolos(nodo_tabla_de_simbolos* nodo_tabla) {
+	printf("Variable: %s, tipo: %d, valor: %f\n", nodo_tabla->nombre_variable, nodo_tabla->tipo, nodo_tabla->valor);
+
+	if(nodo_tabla->simbolo_siguiente != NULL) {
+		imprimir_tabla_de_simbolos(nodo_tabla->simbolo_siguiente);
+	}
+}
+
+int obtener_numero_parametros(nodo_parametro* nodo_parametro, int contador) {
+	if(nodo_parametro == NULL) {
+		return contador;
+	}
+
+	return obtener_numero_parametros(nodo_parametro->siguiente_parametro, contador + 1);
+}
+
+void imprimir_parametros(nodo_parametro* nodo_parametro) {
+	if(nodo_parametro != NULL) {
+		printf("Parametro: %s\n", nodo_parametro->nombre_parametro);
+
+		if(nodo_parametro->siguiente_parametro != NULL) {
+			imprimir_parametros(nodo_parametro->siguiente_parametro);
+		}
+	}
 }
 
 int yyerror(char const * s) {

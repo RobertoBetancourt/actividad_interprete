@@ -1,7 +1,7 @@
   a: int;
   b: int
 
-fun factorial(x: int): int
+fun factorial(x: int, y: float): int
   acumulador : int;
   aux : int
 begin
@@ -11,14 +11,13 @@ begin
    begin
       acumulador <- acumulador * aux;
       aux <- aux + 1
-   end;
-   return acumulador
+   end
 end
 
 begin
    read a;
 
-   b <- factorial(a);
+   b <- 2;
    print a;
    print b
 
