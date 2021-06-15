@@ -1,4 +1,4 @@
-  a: int;
+  a : int;
   b : int
 
 fun factorial(x: int): int
@@ -10,10 +10,11 @@ begin
     if (x = 0)
       return 1
     else  
-      return 9 
+      return b
 end
 
 begin
+   b<-98;
    read a;
 
    b <- factorial(a);

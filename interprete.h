@@ -563,15 +563,19 @@ void ejecutar_lista_de_instrucciones(nodo_punto_y_coma* nodo) {
 }
 
 // INICIAN FUNCIONES PARA REVISAR Y ASIGNAR TIPOS
-void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_tabla_de_simbolos* nodo_a_buscar) {
+void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_tabla_de_simbolos* nodo_a_buscar, int global) {
 	if(strcmp(nodo_variable->nombre_variable, nodo_a_buscar->nombre_variable) == 0) {
 		nodo_variable->tipo = nodo_a_buscar->tipo;
 		nodo_variable->direccion_tabla_simbolos = nodo_a_buscar;
 	} else {
 		if(nodo_a_buscar->simbolo_siguiente != NULL) {
-			asignar_informacion_variable(nodo_variable, nodo_a_buscar->simbolo_siguiente);
+			asignar_informacion_variable(nodo_variable, nodo_a_buscar->simbolo_siguiente, global);
 		} else {
-			yyerror("identifier not found\n");
+			if(global == 1) {
+				yyerror("identifier not found\n");
+			}
+
+			asignar_informacion_variable(nodo_variable, root->inicio_tabla_de_simbolos, 1);
 		}
 	}
 }
@@ -579,7 +583,7 @@ void asignar_informacion_variable(nodo_arbol* nodo_variable, nodo_tabla_de_simbo
 void revisar_tipo_nodo(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	if(nodo != NULL) {
 		switch(nodo->definicion) {	
-			case 0: asignar_informacion_variable(nodo, inicio_tabla_de_simbolos); break;
+			case 0: asignar_informacion_variable(nodo, inicio_tabla_de_simbolos, 0); break;
 			case 2: revisar_tipos_asignacion(nodo, inicio_tabla_de_simbolos); break;
 			case 3:
 			case 4:
@@ -626,7 +630,7 @@ void revisar_tipos_asignacion(nodo_arbol* nodo_asignacion, nodo_tabla_de_simbolo
 }
 
 void revisar_tipos_read(nodo_arbol* nodo_read, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
-	asignar_informacion_variable(nodo_read->centro, inicio_tabla_de_simbolos);
+	asignar_informacion_variable(nodo_read->centro, inicio_tabla_de_simbolos, 0);
 	nodo_read->tipo = nodo_read->centro->tipo;
 }
 
@@ -925,8 +929,18 @@ nodo_funcion* crear_funcion(char nombre_funcion[20], int tipo, nodo_tabla_de_sim
 }
 
 nodo_funcion* unir_funciones(nodo_funcion* nodo1, nodo_funcion* nodo2) {
-	nodo1->siguiente_funcion = nodo2;
+	if(nodo1->inicio_instrucciones == NULL) {
+		return nodo2;
+	} else if(nodo2->inicio_instrucciones == NULL) {
+		if(nodo2->siguiente_funcion == NULL) {
+			return nodo1;
+		} else {
+			nodo1->siguiente_funcion = nodo2->siguiente_funcion;
+			return nodo1;
+		}
+	}
 
+	nodo1->siguiente_funcion = nodo2;
 	return nodo1;
 }
 

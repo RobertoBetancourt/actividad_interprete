@@ -1,15 +1,3 @@
-/*	
-		Roberto Betancourt Hernández - A01551525
-		Luis Edgar Flores Carpinteyro - A01329971
-		Alan Rodrigo Albert Morán - A01328928
-		
-		Los comandos para compilar y ejecutar son: 
-    	flex interprete.l
-    	bison -d interprete.y
-    	gcc lex.yy.c interprete.tab.c -lfl -lm
-    	./a.out prueba.txt
-*/
-
 /* Archivo con el reconocedor léxico */
 %{
 #include<stdlib.h>
