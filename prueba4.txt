@@ -5,21 +5,14 @@ fun factorial(x: int): int
   acumulador : int;
   aux : int
 begin
-   acumulador <- 1;
-   aux <- 1;
-   while (aux <= x)
-   begin
-      acumulador <- acumulador * aux;
-      aux <- aux + 1
-   end;
+   print x;
+   x <- 2;
+   print x;
    return aux
 end
 
 begin
-   read a;
-
-   b <- 2;
-   print a;
-   print b
-
+   a <- 4;
+   b <- factorial(a+1);
+   print 99
 end

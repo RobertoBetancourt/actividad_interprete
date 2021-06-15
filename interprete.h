@@ -71,10 +71,12 @@ struct estructura_programa {
 	nodo_funcion* inicio_funciones;
 };
 
+extern nodo_programa* root;
 extern int numero_linea;
 extern int yylex();
 extern FILE *yyin;
 int yyerror(char const * s);
+float retorno = 0;
 
 // nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_tabla_de_simbolos* nodo_a_buscar);
 nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, char nombre_variable[20], nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der, nodo_arbol* step);
@@ -136,12 +138,256 @@ int obtener_numero_parametros(nodo_parametro* nodo_parametro, int contador);
 nodo_argumento* crear_argumento(nodo_arbol* nodo_expresion);
 nodo_argumento* unir_argumentos(nodo_argumento* nodo1, nodo_argumento* nodo2);
 void agregar_argumentos(nodo_arbol* nodo_llamada_a_funcion, nodo_argumento* inicio_argumentos);
+void revisar_tipos_llamada_funcion(nodo_arbol* nodo_llamada_a_funcion, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
 
 nodo_funcion* unir_funciones(nodo_funcion* nodo1, nodo_funcion* nodo2);
 
+nodo_funcion* buscar_funcion(char funcion_a_buscar[20], nodo_funcion* funcion_actual);
+void realizar_copia_de_tabla_de_simbolos(nodo_tabla_de_simbolos* tabla_a_copiar, nodo_tabla_de_simbolos* copia_tabla);
+void realizar_copia_de_arbol(nodo_arbol* arbol_a_copiar, nodo_arbol* copia_arbol);
+void realizar_copia_de_parametro(nodo_parametro* parametro_a_copiar, nodo_parametro* copia_parametro);
+void realizar_copia_de_arbol(nodo_arbol* arbol_a_copiar, nodo_arbol* copia_arbol);
+void realizar_copia_de_instruccion(nodo_punto_y_coma* instruccion_a_copiar, nodo_punto_y_coma* copia_instruccion);
+nodo_funcion* realizar_copia_de_funcion(nodo_funcion* funcion_a_copiar);
+void revisar_tipos(nodo_punto_y_coma* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos);
+void revisar_tipos_expr(nodo_argumento* argumento_actual, nodo_tabla_de_simbolos* tabla);
+
+nodo_funcion* buscar_funcion(char funcion_a_buscar[20], nodo_funcion* funcion_actual) {
+	if(strcmp(funcion_a_buscar, funcion_actual->nombre_funcion) == 0) {
+		return funcion_actual;
+	}
+
+	if(funcion_actual->siguiente_funcion == NULL) {
+		yyerror("function not found\n");
+	}
+
+	buscar_funcion(funcion_a_buscar, funcion_actual->siguiente_funcion);
+}
+
+void realizar_copia_de_tabla_de_simbolos(nodo_tabla_de_simbolos* tabla_a_copiar, nodo_tabla_de_simbolos* copia_tabla) {
+	strncpy(copia_tabla->nombre_variable, tabla_a_copiar->nombre_variable, 20);
+	copia_tabla->tipo = tabla_a_copiar->tipo;
+	copia_tabla->valor = tabla_a_copiar->valor;
+	copia_tabla->simbolo_siguiente = NULL;
+
+	if(tabla_a_copiar->simbolo_siguiente != NULL) {
+		nodo_tabla_de_simbolos* tabla_siguiente;
+		tabla_siguiente = (nodo_tabla_de_simbolos*)malloc( sizeof(nodo_tabla_de_simbolos) );
+
+		copia_tabla->simbolo_siguiente = tabla_siguiente;
+		realizar_copia_de_tabla_de_simbolos(tabla_a_copiar->simbolo_siguiente, tabla_siguiente);
+	}
+}
+
+void realizar_copia_de_parametro(nodo_parametro* parametro_a_copiar, nodo_parametro* copia_parametro) {
+	strncpy(copia_parametro->nombre_parametro, parametro_a_copiar->nombre_parametro, 20);
+	copia_parametro->siguiente_parametro = NULL;
+
+	if(parametro_a_copiar->siguiente_parametro != NULL) {
+		nodo_parametro* parametro_siguiente;
+		parametro_siguiente = (nodo_parametro*)malloc( sizeof(nodo_parametro) );
+
+		copia_parametro->siguiente_parametro = parametro_siguiente;
+		realizar_copia_de_parametro(parametro_a_copiar->siguiente_parametro, parametro_siguiente);
+	}
+}
+
+void realizar_copia_de_argumento(nodo_argumento* argumento_a_copiar, nodo_argumento* copia_argumento) {
+	copia_argumento->nodo_expresion = NULL;
+	copia_argumento->siguiente_nodo = NULL;
+
+	if(argumento_a_copiar->nodo_expresion != NULL) {
+		nodo_arbol* copia_de_expresion;
+		copia_de_expresion = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_argumento->nodo_expresion = copia_de_expresion;
+		realizar_copia_de_arbol(argumento_a_copiar->nodo_expresion, copia_de_expresion);
+	}
+
+	if(argumento_a_copiar->siguiente_nodo != NULL) {
+		nodo_argumento* siguiente_nodo;
+		siguiente_nodo = (nodo_argumento*)malloc( sizeof(nodo_argumento) );
+		copia_argumento->siguiente_nodo = siguiente_nodo;
+		realizar_copia_de_argumento(argumento_a_copiar->siguiente_nodo, siguiente_nodo);
+	}
+}
+
+void realizar_copia_de_arbol(nodo_arbol* arbol_a_copiar, nodo_arbol* copia_arbol) {
+	copia_arbol->definicion = arbol_a_copiar->definicion;
+	copia_arbol->tipo = arbol_a_copiar->tipo;
+	copia_arbol->valor = arbol_a_copiar->valor;
+	strncpy(copia_arbol->nombre_variable, arbol_a_copiar->nombre_variable, 20);
+	copia_arbol->inicio_instrucciones = NULL;
+	copia_arbol->izq = NULL;
+	copia_arbol->centro = NULL;
+	copia_arbol->der = NULL;
+	copia_arbol->step = NULL;
+	copia_arbol->direccion_tabla_simbolos = NULL;
+	copia_arbol->argumento_funcion = NULL;
+
+	if(arbol_a_copiar->inicio_instrucciones != NULL) {
+		nodo_punto_y_coma* copia_de_instruccion;
+		copia_de_instruccion = (nodo_punto_y_coma*)malloc( sizeof(nodo_punto_y_coma) );
+		copia_arbol->inicio_instrucciones = copia_de_instruccion;
+		realizar_copia_de_instruccion(arbol_a_copiar->inicio_instrucciones, copia_de_instruccion);
+	}
+
+	if(arbol_a_copiar->izq != NULL) {
+		nodo_arbol* copia_izq;
+		copia_izq = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_arbol->izq = copia_izq;
+		realizar_copia_de_arbol(arbol_a_copiar->izq, copia_izq);
+	}
+	
+	if(arbol_a_copiar->centro != NULL) {
+		nodo_arbol* copia_centro;
+		copia_centro = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_arbol->centro = copia_centro;
+		realizar_copia_de_arbol(arbol_a_copiar->centro, copia_centro);
+	}
+
+	if(arbol_a_copiar->der != NULL) {
+		nodo_arbol* copia_der;
+		copia_der = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_arbol->der = copia_der;
+		realizar_copia_de_arbol(arbol_a_copiar->der, copia_der);
+	}
+
+	if(arbol_a_copiar->step != NULL) {
+		nodo_arbol* copia_step;
+		copia_step = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_arbol->step = copia_step;
+		realizar_copia_de_arbol(arbol_a_copiar->step, copia_step);
+	}
+
+	if(arbol_a_copiar->direccion_tabla_simbolos != NULL) {
+		nodo_tabla_de_simbolos* copia_direccion_tabla_simbolos;
+		copia_direccion_tabla_simbolos = (nodo_tabla_de_simbolos*)malloc( sizeof(nodo_tabla_de_simbolos) );
+		copia_arbol->direccion_tabla_simbolos = copia_direccion_tabla_simbolos;
+		realizar_copia_de_tabla_de_simbolos(arbol_a_copiar->direccion_tabla_simbolos, copia_direccion_tabla_simbolos);
+	}
+
+	if(arbol_a_copiar->argumento_funcion != NULL) {
+		nodo_argumento* copia_argumento;
+		copia_argumento = (nodo_argumento*)malloc( sizeof(nodo_argumento) );
+		copia_arbol->argumento_funcion = copia_argumento;
+		realizar_copia_de_argumento(arbol_a_copiar->argumento_funcion, copia_argumento);
+	}
+	
+}
+
+void realizar_copia_de_instruccion(nodo_punto_y_coma* instruccion_a_copiar, nodo_punto_y_coma* copia_instruccion) {
+	copia_instruccion->inicio = NULL;
+	copia_instruccion->siguiente_instruccion = NULL;
+
+	if(instruccion_a_copiar->inicio != NULL) {
+		nodo_arbol* copia_de_arbol;
+		copia_de_arbol = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
+		copia_instruccion->inicio = copia_de_arbol;
+		realizar_copia_de_arbol(instruccion_a_copiar->inicio, copia_de_arbol);
+	}
+
+	if(instruccion_a_copiar->siguiente_instruccion != NULL) {
+		nodo_punto_y_coma* siguiente_instruccion;
+		siguiente_instruccion = (nodo_punto_y_coma*)malloc( sizeof(nodo_punto_y_coma) );
+		copia_instruccion->siguiente_instruccion = siguiente_instruccion;
+		realizar_copia_de_instruccion(instruccion_a_copiar->siguiente_instruccion, siguiente_instruccion);
+	}
+}
+
+nodo_funcion* realizar_copia_de_funcion(nodo_funcion* funcion_a_copiar) {
+	nodo_funcion* copia_funcion;
+	copia_funcion = (nodo_funcion*)malloc( sizeof(nodo_funcion) );
+
+	strncpy(copia_funcion->nombre_funcion, funcion_a_copiar->nombre_funcion, 20);
+	copia_funcion->tipo = funcion_a_copiar->tipo;
+	copia_funcion->tabla_de_simbolos_local = NULL;
+	copia_funcion->num_parametros = funcion_a_copiar->num_parametros;
+	copia_funcion->parametro_inicial = NULL;
+	copia_funcion->inicio_instrucciones = NULL;
+	copia_funcion->siguiente_funcion = NULL;
+
+	if(funcion_a_copiar->tabla_de_simbolos_local != NULL) {
+		nodo_tabla_de_simbolos* copia_de_tabla_de_simbolos;
+		copia_de_tabla_de_simbolos = (nodo_tabla_de_simbolos*)malloc( sizeof(nodo_tabla_de_simbolos) );
+		copia_funcion->tabla_de_simbolos_local = copia_de_tabla_de_simbolos;
+		realizar_copia_de_tabla_de_simbolos(funcion_a_copiar->tabla_de_simbolos_local, copia_de_tabla_de_simbolos);
+	}
+	
+	if(funcion_a_copiar->parametro_inicial != NULL) {
+		nodo_parametro* copia_de_parametro;
+		copia_de_parametro = (nodo_parametro*)malloc( sizeof(nodo_parametro) );
+		copia_funcion->parametro_inicial = copia_de_parametro;
+		realizar_copia_de_parametro(funcion_a_copiar->parametro_inicial, copia_de_parametro);
+	}
+	
+	if(funcion_a_copiar->inicio_instrucciones != NULL) {
+		nodo_punto_y_coma* copia_de_instruccion;
+		copia_de_instruccion = (nodo_punto_y_coma*)malloc( sizeof(nodo_punto_y_coma) );
+		copia_funcion->inicio_instrucciones = copia_de_instruccion;
+		realizar_copia_de_instruccion(funcion_a_copiar->inicio_instrucciones, copia_de_instruccion);
+	}
+
+	return copia_funcion;
+}
+
+void asignar_valor_parametro(nodo_tabla_de_simbolos* tabla_de_simbolos, char nombre_variable[20], float valor) {
+	if(strcmp(tabla_de_simbolos->nombre_variable, nombre_variable) == 0) {
+		// printf("ASIGNANDO VALOR DE %f EN TABLA DE SIMBOLOS\n", valor);
+		tabla_de_simbolos->valor = valor;
+	} else {
+		if(tabla_de_simbolos->simbolo_siguiente == NULL) {
+			yyerror("symbol not found");
+		}
+
+		asignar_valor_parametro(tabla_de_simbolos->simbolo_siguiente, nombre_variable, valor);
+	}
+}
+
+void inicializar_parametros(nodo_funcion* funcion, nodo_parametro* parametro, nodo_argumento* argumento) {
+	// printf("Entrando a funcion\n");
+	// printf("Inicializando parametro %s\n", parametro->nombre_parametro);
+	int valor_argumento = obtener_valor_nodo(argumento->nodo_expresion);
+	// printf("Terminando de obtener valor nodo\n");
+	asignar_valor_parametro(funcion->tabla_de_simbolos_local, parametro->nombre_parametro, valor_argumento);
+	
+	if(parametro->siguiente_parametro != NULL && argumento->siguiente_nodo != NULL) {
+		inicializar_parametros(funcion, parametro->siguiente_parametro, argumento->siguiente_nodo);
+	} else {
+		if((parametro->siguiente_parametro == NULL && argumento->siguiente_nodo != NULL)
+			|| (parametro->siguiente_parametro != NULL && argumento->siguiente_nodo == NULL)) {
+			yyerror("Arguments and parameters differ in length");
+		}
+	}
+
+	// printf("Terminando inicializacion parametro %s\n", parametro->nombre_parametro);
+}
+
+float llamada_a_funcion(char nombre_funcion[20], nodo_argumento* argumento_funcion) {
+	nodo_funcion* funcion = buscar_funcion(nombre_funcion, root->inicio_funciones);
+	
+	nodo_funcion* copia_funcion = realizar_copia_de_funcion(funcion);
+
+	// printf("copia_funcion->nombre_funcion: %s\n", copia_funcion->nombre_funcion);
+	// printf("===============================================================\n");
+	// imprimir_tabla_de_simbolos(copia_funcion->tabla_de_simbolos_local);
+	// printf("===============================================================\n");
+
+	if(copia_funcion->parametro_inicial != NULL && argumento_funcion != NULL) {
+		inicializar_parametros(copia_funcion, copia_funcion->parametro_inicial, argumento_funcion);
+		// printf("No hay segmentation fault\n");
+		imprimir_tabla_de_simbolos(copia_funcion->tabla_de_simbolos_local);
+		revisar_tipos(copia_funcion->inicio_instrucciones, copia_funcion->tabla_de_simbolos_local);
+		ejecutar_lista_de_instrucciones(copia_funcion->inicio_instrucciones);
+		
+	}
+
+	return retorno;
+	// return copia_funcion->valor_de_retorno;
+}
 
 // Función que regresa el valor de un nodo
 float obtener_valor_nodo(nodo_arbol* nodo) {
+	// printf("nodo->definicion: %d\n", nodo->definicion);
 	switch(nodo->definicion) {
 		// Caso base 1: el nodo es una variable, por lo que se obtiene su valor de la tabla de símbolos
 		case 0: return nodo->direccion_tabla_simbolos->valor; break;
@@ -152,8 +398,8 @@ float obtener_valor_nodo(nodo_arbol* nodo) {
 		case 11: return restar(nodo->izq, nodo->der); break;
 		case 12: return multiplicar(nodo->izq, nodo->der); break;
 		case 13: return dividir(nodo->izq, nodo->der); break;
+		case 21: return llamada_a_funcion(nodo->nombre_variable, nodo->argumento_funcion); break;
 	}
-
 	return 0.0;
 }
 
@@ -243,7 +489,6 @@ int comparar_valores(nodo_arbol* nodo) {
 
 void ejecutar_if(nodo_arbol* nodo_comparacion, nodo_arbol* nodo_ejecucion_if, nodo_arbol* nodo_ejecucion_else) {
 	int comparacion = comparar_valores(nodo_comparacion);
-
 	if(comparacion) {
 		ejecutar_instruccion(nodo_ejecucion_if);
 	} else if(nodo_ejecucion_else != NULL) {
@@ -303,6 +548,7 @@ void ejecutar_instruccion(nodo_arbol* nodo) {
 		case 7: imprimir(nodo->centro); break;
 		case 8: ejecutar_lista_de_instrucciones(nodo->inicio_instrucciones); break;
 		case 19: ejecutar_for(nodo->izq, nodo->centro, nodo->der, nodo->step); break;	
+		case 20: retorno = obtener_valor_nodo(nodo->centro); break;
 	}
 }
 
@@ -335,6 +581,9 @@ void revisar_tipo_nodo(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de
 		switch(nodo->definicion) {	
 			case 0: asignar_informacion_variable(nodo, inicio_tabla_de_simbolos); break;
 			case 2: revisar_tipos_asignacion(nodo, inicio_tabla_de_simbolos); break;
+			case 3:
+			case 4:
+				revisar_tipos_if(nodo, inicio_tabla_de_simbolos); break;
 			case 5: revisar_tipos_while(nodo, inicio_tabla_de_simbolos); break;
 			case 6: revisar_tipos_read(nodo, inicio_tabla_de_simbolos); break;
 			case 7: revisar_tipos_print(nodo, inicio_tabla_de_simbolos); break;
@@ -355,6 +604,8 @@ void revisar_tipo_nodo(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de
 				}
 				nodo->tipo = nodo->izq->tipo;
 				break;
+			case 20: revisar_tipo_nodo(nodo->centro, inicio_tabla_de_simbolos); break;
+			case 21: revisar_tipos_llamada_funcion(nodo, inicio_tabla_de_simbolos); break;
 		}
 	}
 }
@@ -365,6 +616,7 @@ void revisar_tipos_asignacion(nodo_arbol* nodo_asignacion, nodo_tabla_de_simbolo
 	}
 
 	revisar_tipo_nodo(nodo_asignacion->izq, inicio_tabla_de_simbolos);
+	// printf("nodo_asignacion->der->definicion: %d\n", nodo_asignacion->der->definicion);
 	revisar_tipo_nodo(nodo_asignacion->der, inicio_tabla_de_simbolos);
 
 	if(nodo_asignacion->izq->tipo != nodo_asignacion->der->tipo) {
@@ -406,8 +658,38 @@ void revisar_tipos_for(nodo_arbol* nodo_for, nodo_tabla_de_simbolos* inicio_tabl
 	revisar_tipo_nodo(nodo_for->step, inicio_tabla_de_simbolos);
 }
 
+int buscar_tipo_de_funcion(char nombre_funcion[20], nodo_funcion* funcion_actual) {
+	if(strcmp(nombre_funcion, funcion_actual->nombre_funcion) == 0) {
+		return funcion_actual->tipo;
+	}
+
+	if(funcion_actual->siguiente_funcion == NULL) {
+		yyerror("function not found\n");
+	}
+
+	buscar_tipo_de_funcion(nombre_funcion, funcion_actual->siguiente_funcion);
+}
+
+void revisar_tipos_expr(nodo_argumento* argumento_actual, nodo_tabla_de_simbolos* tabla) {
+	revisar_tipo_nodo(argumento_actual->nodo_expresion, tabla);
+
+	if(argumento_actual->siguiente_nodo != NULL) {
+		revisar_tipos_expr(argumento_actual->siguiente_nodo, tabla);
+	}
+}
+
+void revisar_tipos_llamada_funcion(nodo_arbol* nodo_llamada_a_funcion, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
+	if(root->inicio_funciones != NULL) {
+		nodo_llamada_a_funcion->tipo = buscar_tipo_de_funcion(nodo_llamada_a_funcion->nombre_variable, root->inicio_funciones);
+		revisar_tipos_expr(nodo_llamada_a_funcion->argumento_funcion, inicio_tabla_de_simbolos);
+	} else {
+		yyerror("function not found\n");
+	}
+}
+
 void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio_tabla_de_simbolos) {
 	// Se ejecuta la revision de tipos dependiendo de si se trata de una asignación, un for, while, print, etc.
+	// printf("Definicion de nodo en revision de tipos: %d\n", nodo->definicion);
 	switch(nodo->definicion) {
 		case 2: revisar_tipos_asignacion(nodo, inicio_tabla_de_simbolos); break;
 		case 3:
@@ -419,6 +701,7 @@ void ejecutar_revision_de_tipos(nodo_arbol* nodo, nodo_tabla_de_simbolos* inicio
 		case 8: revisar_tipos(nodo->inicio_instrucciones, inicio_tabla_de_simbolos); break;
 		case 19: revisar_tipos_for(nodo, inicio_tabla_de_simbolos); break;
 		case 20: revisar_tipos_return(nodo, inicio_tabla_de_simbolos); break;
+		case 21: revisar_tipos_llamada_funcion(nodo, inicio_tabla_de_simbolos); break;
 	}
 }
 
@@ -591,7 +874,7 @@ nodo_tabla_y_parametro* unir_nodo_tabla_y_parametro(nodo_tabla_y_parametro* nodo
 }
 
 void imprimir_nodos_tabla_y_parametro(nodo_tabla_y_parametro* nodo) {
-	printf("nodo->nodo_tabla->nombre_variable: %s\n", nodo->nodo_tabla->nombre_variable);
+	// printf("nodo->nodo_tabla->nombre_variable: %s\n", nodo->nodo_tabla->nombre_variable);
 
 	if(nodo->nodo_siguiente != NULL) {
 		imprimir_nodos_tabla_y_parametro(nodo->nodo_siguiente);
@@ -687,7 +970,7 @@ nodo_parametro* formar_lista_de_parametros(nodo_tabla_y_parametro* nodo_tabla_y_
 }
 
 void imprimir_tabla_de_simbolos(nodo_tabla_de_simbolos* nodo_tabla) {
-	printf("Variable: %s, tipo: %d, valor: %f\n", nodo_tabla->nombre_variable, nodo_tabla->tipo, nodo_tabla->valor);
+	// printf("Variable: %s, tipo: %d, valor: %f\n", nodo_tabla->nombre_variable, nodo_tabla->tipo, nodo_tabla->valor);
 
 	if(nodo_tabla->simbolo_siguiente != NULL) {
 		imprimir_tabla_de_simbolos(nodo_tabla->simbolo_siguiente);
@@ -704,7 +987,7 @@ int obtener_numero_parametros(nodo_parametro* nodo_parametro, int contador) {
 
 void imprimir_parametros(nodo_parametro* nodo_parametro) {
 	if(nodo_parametro != NULL) {
-		printf("Parametro: %s\n", nodo_parametro->nombre_parametro);
+		// printf("Parametro: %s\n", nodo_parametro->nombre_parametro);
 
 		if(nodo_parametro->siguiente_parametro != NULL) {
 			imprimir_parametros(nodo_parametro->siguiente_parametro);

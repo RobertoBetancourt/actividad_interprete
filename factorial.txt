@@ -1,0 +1,20 @@
+  a: int;
+  b : int
+
+fun factorial(x: int): int
+  
+begin
+  if (x < 0) return 0
+  else
+    if (x = 0) return 1
+    else return x * factorial(x-1)
+end
+
+begin
+   read a;
+
+   b <- factorial(a);
+   print a;
+   print b
+
+end

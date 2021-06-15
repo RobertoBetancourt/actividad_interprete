@@ -1,0 +1,24 @@
+  a : int;
+  b : float
+
+fun cuadradoi(x: int): int
+  y : int
+begin
+   y <- x * x;
+   return y
+end
+
+fun cuadrador(y: float): float
+begin
+   return y * y
+end
+
+begin
+   read a;
+   read b;
+
+   a <- cuadradoi(a);
+   print a;
+   print cuadrador(b)
+
+end

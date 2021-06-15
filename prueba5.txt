@@ -1,0 +1,42 @@
+  x : int;
+  y: int
+
+fun divide(x : int, y : int): int
+   ac : int;
+   aux : int
+begin
+   if (x < 0)
+      return 0
+   fi;
+   if (y <=0)
+      return 0
+   else
+   begin
+      ac <- 0;
+      aux <- y;
+      while (aux >=x) 
+      begin
+         aux <- aux - x;
+	 ac <- ac + 1
+      end
+    end;
+    return ac
+end
+
+fun menor(x : int, y : int): int
+begin
+   if (x < y)
+     return x
+   else
+     return y
+end
+
+begin
+  read x;
+  read y;
+
+  print menor(x,y);
+  print divide(x,y);
+  print x;
+  print y
+end

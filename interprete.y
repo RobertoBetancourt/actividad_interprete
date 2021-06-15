@@ -12,8 +12,7 @@
 
 %{
 #include "interprete.h"
-
-nodo_programa* root = NULL;
+nodo_programa* root;
 %}
 
 %union {
@@ -73,7 +72,7 @@ fun_decls : fun_decls fun_decl							{$$ = unir_funciones($1, $2);}
 fun_decl : FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo opt_decls BEGIN_RESERVADA opt_stmts END_RESERVADA			{ nodo_tabla_de_simbolos* inicio_tabla_funcion = formar_tabla_de_simbolos_funcion($4, $8);
 																																																																nodo_parametro* inicio_parametros = formar_lista_de_parametros($4);
 																																																																int numero_parametros = obtener_numero_parametros(inicio_parametros, 0);
-																																																																$$ = crear_funcion($1, $7, inicio_tabla_funcion, numero_parametros, inicio_parametros, $10, NULL);}
+																																																																$$ = crear_funcion($2, $7, inicio_tabla_funcion, numero_parametros, inicio_parametros, $10, NULL);}
 				 | FUNCION IDENTIFICADOR PARENI oparams PAREND DOS_PUNTOS tipo PUNTO_Y_COMA																						{ nodo_tabla_de_simbolos* inicio_tabla_funcion = formar_tabla_de_simbolos_funcion($4, NULL);
 																																																																nodo_parametro* inicio_parametros = formar_lista_de_parametros($4);
 																																																																int numero_parametros = obtener_numero_parametros(inicio_parametros, 0);
@@ -142,7 +141,7 @@ term : term MULTI factor					{	nodo_arbol* nodo = crear_nodo_arbol(12, -1, -1, "
 
 factor : PARENI expr PAREND												{$$ = $2;}
        | IDENTIFICADOR														{$$ = crear_nodo_arbol(0, -1, -1, $1, NULL, NULL, NULL, NULL, NULL);}
-			 | ENTERO																		{$$ = crear_nodo_arbol(1, 0, $1, "", NULL, NULL, NULL, NULL, NULL);}
+			 | ENTERO																		{printf("Leyendo entero\n"); $$ = crear_nodo_arbol(1, 0, $1, "", NULL, NULL, NULL, NULL, NULL);}
 			 | FLOTANTE																	{$$ = crear_nodo_arbol(1, 1, $1, "", NULL, NULL, NULL, NULL, NULL);}
 			 | IDENTIFICADOR PARENI opt_exprs PAREND		{nodo_arbol* nodo = crear_nodo_arbol(21, -1, -1, $1, NULL, NULL, NULL, NULL, NULL);
 			 																						agregar_argumentos(nodo, $3);

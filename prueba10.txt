@@ -1,0 +1,10 @@
+x : int;
+y : int;
+res : int;
+z : int;
+temp : int
+
+begin
+  read x;
+  print x
+end
