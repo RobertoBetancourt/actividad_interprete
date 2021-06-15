@@ -355,7 +355,7 @@ void inicializar_parametros(nodo_funcion* funcion, nodo_parametro* parametro, no
 	} else {
 		if((parametro->siguiente_parametro == NULL && argumento->siguiente_nodo != NULL)
 			|| (parametro->siguiente_parametro != NULL && argumento->siguiente_nodo == NULL)) {
-			yyerror("Arguments and parameters differ in length");
+			yyerror("arguments and parameters differ in length");
 		}
 	}
 
@@ -739,35 +739,6 @@ nodo_tabla_de_simbolos* crear_nodo_de_tabla_de_simbolos(char variable[20], int t
 
 	return nuevo_nodo;
 }
-
-// Se busca un identificador en la tabla de símbolos
-// nodo_arbol* buscar_identificador(char nombre_variable[20], nodo_tabla_de_simbolos* nodo_a_buscar) {
-// 	if(nodo_a_buscar == NULL) {
-// 		yyerror("Identifier not found");
-// 		return NULL;
-// 	}
-	
-// 	if(strcmp(nombre_variable, nodo_a_buscar->nombre_variable) == 0) {
-// 		nodo_arbol* nodo_encontrado;
-// 		nodo_encontrado = (nodo_arbol*)malloc( sizeof(nodo_arbol) );
-
-// 		nodo_encontrado->definicion = 0;
-// 		nodo_encontrado->tipo = nodo_a_buscar->tipo;
-// 		nodo_encontrado->valor = -1;
-// 		nodo_encontrado->direccion_tabla_simbolos = nodo_a_buscar;
-// 		nodo_encontrado->izq = NULL;
-// 		nodo_encontrado->centro = NULL;
-// 		nodo_encontrado->der = NULL;
-// 		return nodo_encontrado;
-// 	}
-	
-// 	if(nodo_a_buscar->simbolo_siguiente == NULL) {
-// 			yyerror("identifier not found");
-// 			return NULL;
-// 	}
-
-// 	buscar_identificador(nombre_variable, nodo_a_buscar->simbolo_siguiente);
-// }
 
 nodo_arbol* crear_nodo_arbol(int definicion, int tipo, float valor, char nombre_variable[20], nodo_punto_y_coma* inicio_instrucciones, nodo_arbol* izq, nodo_arbol* centro, nodo_arbol* der, nodo_arbol* step) {
 	// Si se trata de un stmt de una asignación, comprobar que a la izq esté una variable
